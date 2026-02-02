@@ -125,7 +125,7 @@ export function createGatewayCloseHandler(params: {
         httpServer.close((err) => (err ? reject(err) : resolve())),
       );
     }
-    
+
     // Shutdown Event Store connection
     await shutdownEventStore().catch(() => {});
   };
