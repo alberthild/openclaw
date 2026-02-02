@@ -26,7 +26,9 @@ async function persistDirectRoom(
 ): Promise<void> {
   let directContent: MatrixDirectAccountData | null = null;
   try {
-    directContent = await client.getAccountData(EventType.Direct);
+    directContent = (await client.getAccountData(
+      EventType.Direct,
+    )) as MatrixDirectAccountData | null;
   } catch {
     // Ignore fetch errors and fall back to an empty map.
   }
@@ -59,7 +61,9 @@ async function resolveDirectRoomId(client: MatrixClient, userId: string): Promis
 
   // 1) Fast path: use account data (m.direct) for *this* logged-in user (the bot).
   try {
-    const directContent = await client.getAccountData(EventType.Direct);
+    const directContent = (await client.getAccountData(
+      EventType.Direct,
+    )) as MatrixDirectAccountData | null;
     const list = Array.isArray(directContent?.[trimmed]) ? directContent[trimmed] : [];
     if (list.length > 0) {
       directRoomCache.set(trimmed, list[0]);

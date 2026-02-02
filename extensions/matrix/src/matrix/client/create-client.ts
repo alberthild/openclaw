@@ -6,6 +6,7 @@ import {
   RustSdkCryptoStorageProvider,
 } from "@vector-im/matrix-bot-sdk";
 import fs from "node:fs";
+import { importCryptoNodejs } from "../import-mutex.js";
 import { ensureMatrixSdkLoggingConfigured } from "./logging.js";
 import {
   maybeMigrateLegacyStorage,
@@ -65,7 +66,8 @@ export async function createMatrixClient(params: {
     fs.mkdirSync(storagePaths.cryptoPath, { recursive: true });
 
     try {
-      const { StoreType } = await import("@matrix-org/matrix-sdk-crypto-nodejs");
+      // Use serialized import to prevent race conditions with native Rust module
+      const { StoreType } = await importCryptoNodejs();
       cryptoStorage = new RustSdkCryptoStorageProvider(storagePaths.cryptoPath, StoreType.Sqlite);
     } catch (err) {
       LogService.warn(

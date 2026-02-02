@@ -172,7 +172,7 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
     },
   };
 
-  const auth = await resolveMatrixAuth({ cfg });
+  const auth = await resolveMatrixAuth({ cfg, accountId: opts.accountId });
   const resolvedInitialSyncLimit =
     typeof opts.initialSyncLimit === "number"
       ? Math.max(0, Math.floor(opts.initialSyncLimit))
@@ -187,7 +187,7 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
     startClient: false,
     accountId: opts.accountId,
   });
-  setActiveMatrixClient(client);
+  setActiveMatrixClient(client, opts.accountId);
 
   const mentionRegexes = core.channel.mentions.buildMentionRegexes(cfg);
   const defaultGroupPolicy = cfg.channels?.defaults?.groupPolicy;
@@ -232,6 +232,7 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
     directTracker,
     getRoomInfo,
     getMemberDisplayName,
+    accountId: opts.accountId,
   });
 
   registerMatrixMonitorEvents({
@@ -275,10 +276,10 @@ export async function monitorMatrixProvider(opts: MonitorMatrixOpts = {}): Promi
   await new Promise<void>((resolve) => {
     const onAbort = () => {
       try {
-        logVerboseMessage("matrix: stopping client");
-        stopSharedClient();
+        logVerboseMessage(`matrix: stopping client for account ${opts.accountId ?? "default"}`);
+        stopSharedClient(opts.accountId);
       } finally {
-        setActiveMatrixClient(null);
+        setActiveMatrixClient(null, opts.accountId);
         resolve();
       }
     };

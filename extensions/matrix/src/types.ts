@@ -38,10 +38,10 @@ export type MatrixActionConfig = {
   channelInfo?: boolean;
 };
 
-export type MatrixConfig = {
+export type MatrixAccountConfig = {
   /** Optional display name for this account (used in CLI/UI lists). */
   name?: string;
-  /** If false, do not start Matrix. Default: true. */
+  /** If false, do not start this account. Default: true. */
   enabled?: boolean;
   /** Matrix homeserver URL (https://matrix.example.org). */
   homeserver?: string;
@@ -87,9 +87,22 @@ export type MatrixConfig = {
   actions?: MatrixActionConfig;
 };
 
+export type MatrixConfig = {
+  /** Optional per-account Matrix configuration (multi-account). */
+  accounts?: Record<string, MatrixAccountConfig>;
+} & MatrixAccountConfig;
+
 export type CoreConfig = {
   channels?: {
     matrix?: MatrixConfig;
   };
+  bindings?: Array<{
+    agentId?: string;
+    match?: {
+      channel?: string;
+      accountId?: string;
+      peer?: { kind?: string; id?: string };
+    };
+  }>;
   [key: string]: unknown;
 };

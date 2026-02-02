@@ -57,14 +57,9 @@ export function resolveMatrixStoragePaths(params: {
   const userKey = sanitizePathSegment(params.userId);
   const serverKey = resolveHomeserverKey(params.homeserver);
   const tokenHash = hashAccessToken(params.accessToken);
-  const rootDir = path.join(
-    stateDir,
-    "matrix",
-    "accounts",
-    accountKey,
-    `${serverKey}__${userKey}`,
-    tokenHash,
-  );
+  // Note: rootDir does NOT include tokenHash to preserve crypto state on token rotation
+  // Token rotation should not fragment storage (especially important for E2EE)
+  const rootDir = path.join(stateDir, "matrix", "accounts", accountKey, `${serverKey}__${userKey}`);
   return {
     rootDir,
     storagePath: path.join(rootDir, "bot-storage.json"),

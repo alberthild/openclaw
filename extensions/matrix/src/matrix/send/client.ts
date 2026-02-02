@@ -28,29 +28,35 @@ export function resolveMediaMaxBytes(): number | undefined {
 export async function resolveMatrixClient(opts: {
   client?: MatrixClient;
   timeoutMs?: number;
+  accountId?: string | null;
 }): Promise<{ client: MatrixClient; stopOnDone: boolean }> {
   ensureNodeRuntime();
   if (opts.client) {
     return { client: opts.client, stopOnDone: false };
   }
-  const active = getActiveMatrixClient();
+
+  // Try to get the active client for the specified account
+  const active = getActiveMatrixClient(opts.accountId);
   if (active) {
     return { client: active, stopOnDone: false };
   }
+
   const shouldShareClient = Boolean(process.env.OPENCLAW_GATEWAY_PORT);
   if (shouldShareClient) {
     const client = await resolveSharedMatrixClient({
       timeoutMs: opts.timeoutMs,
+      accountId: opts.accountId,
     });
     return { client, stopOnDone: false };
   }
-  const auth = await resolveMatrixAuth();
+  const auth = await resolveMatrixAuth({ accountId: opts.accountId ?? undefined });
   const client = await createMatrixClient({
     homeserver: auth.homeserver,
     userId: auth.userId,
     accessToken: auth.accessToken,
     encryption: auth.encryption,
     localTimeoutMs: opts.timeoutMs,
+    accountId: opts.accountId ?? undefined,
   });
   if (auth.encryption && client.crypto) {
     try {
