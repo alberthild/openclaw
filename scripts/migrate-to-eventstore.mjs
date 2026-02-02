@@ -242,7 +242,7 @@ async function main() {
     const httpUrl = options.natsUrl.replace(/^nats:\/\//, 'http://');
     const url = new URL(httpUrl);
     const connOpts = {
-      servers: `${url.hostname}:${url.port || 4222}`,
+      servers: `nats://${url.hostname}:${url.port || 4222}`,
     };
     if (url.username && url.password) {
       connOpts.user = decodeURIComponent(url.username);

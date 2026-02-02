@@ -129,8 +129,8 @@ async function queryEvents(
           continue;
         }
 
-        // Filter by agent if specified
-        if (options.agent && data.agent !== options.agent && data.agent !== "agent") {
+        // Filter by agent if specified (strict match)
+        if (options.agent && data.agent !== options.agent) {
           continue;
         }
 
@@ -158,7 +158,7 @@ async function queryEvents(
 }
 
 /**
- * Extract conversation messages from events
+ * Extract conversation messages from events (both user and assistant)
  */
 function extractConversations(events: StoredEvent[]): ConversationMessage[] {
   const messages: ConversationMessage[] = [];
@@ -168,25 +168,30 @@ function extractConversations(events: StoredEvent[]): ConversationMessage[] {
   const sorted = [...events].sort((a, b) => a.timestamp - b.timestamp);
 
   for (const event of sorted) {
-    if (event.type !== "conversation.message.out") continue;
+    // Include both incoming (user) and outgoing (assistant) messages
+    const isUserMessage = event.type === "conversation.message.in";
+    const isAssistantMessage = event.type === "conversation.message.out";
+
+    if (!isUserMessage && !isAssistantMessage) continue;
 
     const text = event.payload.data?.text as string;
     if (!text || seenTexts.has(text)) continue;
 
-    // Only keep final/complete messages (skip deltas)
-    // We detect this by checking if this is the last event with this runId
-    const runId = event.payload.runId;
-    const laterEvents = sorted.filter(
-      (e) => e.payload.runId === runId && e.timestamp > event.timestamp,
-    );
+    // For assistant messages: only keep final/complete messages (skip deltas)
+    if (isAssistantMessage) {
+      const runId = event.payload.runId;
+      const laterEvents = sorted.filter(
+        (e) => e.payload.runId === runId && e.timestamp > event.timestamp,
+      );
 
-    // If there are later events with same runId, this is a delta - skip
-    if (laterEvents.length > 0) continue;
+      // If there are later events with same runId, this is a delta - skip
+      if (laterEvents.length > 0) continue;
+    }
 
     seenTexts.add(text);
     messages.push({
       timestamp: event.timestamp,
-      role: "assistant",
+      role: isUserMessage ? "user" : "assistant",
       text: text.trim(),
       session: event.session,
     });
