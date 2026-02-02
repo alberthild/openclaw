@@ -23,13 +23,13 @@ function resolveAccountConfig(
     return undefined;
   }
   const direct = accounts[accountId] as MatrixAccountConfig | undefined;
-  if (direct) return direct;
+  if (direct) {return direct;}
   
   const normalized = normalizeAccountId(accountId);
   const matchKey = Object.keys(accounts).find(
     (key) => normalizeAccountId(key) === normalized
   );
-  return matchKey ? (accounts[matchKey] as MatrixAccountConfig | undefined) : undefined;
+  return matchKey ? accounts[matchKey] : undefined;
 }
 
 /**

@@ -49,7 +49,7 @@ export function registerMatrixMonitorEvents(params: {
       const iterator = processedEvents.values();
       for (let i = 0; i < 100; i++) {
         const next = iterator.next();
-        if (next.done) break;
+        if (next.done) {break;}
         processedEvents.delete(next.value);
       }
     }

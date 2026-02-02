@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import path from "node:path";
 
 const DEBUG_LOG_PATH = "/home/keller/clawd/agents/mondo-assistant/debug-matrix.log";
 

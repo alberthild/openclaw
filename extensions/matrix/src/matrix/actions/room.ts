@@ -25,7 +25,7 @@ export async function getMatrixMemberInfo(
       roomId: roomId ?? null,
     };
   } finally {
-    if (stopOnDone) client.stop();
+    if (stopOnDone) {client.stop();}
   }
 }
 
@@ -83,6 +83,6 @@ export async function getMatrixRoomInfo(
       memberCount,
     };
   } finally {
-    if (stopOnDone) client.stop();
+    if (stopOnDone) {client.stop();}
   }
 }

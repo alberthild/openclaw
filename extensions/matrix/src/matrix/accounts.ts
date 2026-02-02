@@ -24,7 +24,7 @@ function listConfiguredAccountIds(cfg: CoreConfig): string[] {
   }
   const ids = new Set<string>();
   for (const key of Object.keys(accounts)) {
-    if (!key) continue;
+    if (!key) {continue;}
     ids.add(normalizeAccountId(key));
   }
   return [...ids];
@@ -35,7 +35,7 @@ function listConfiguredAccountIds(cfg: CoreConfig): string[] {
  */
 function listBoundAccountIds(cfg: CoreConfig): string[] {
   const bindings = cfg.bindings;
-  if (!Array.isArray(bindings)) return [];
+  if (!Array.isArray(bindings)) {return [];}
   const ids = new Set<string>();
   for (const binding of bindings) {
     if (binding.match?.channel === "matrix" && binding.match?.accountId) {
@@ -61,7 +61,7 @@ export function listMatrixAccountIds(cfg: CoreConfig): string[] {
 
 export function resolveDefaultMatrixAccountId(cfg: CoreConfig): string {
   const ids = listMatrixAccountIds(cfg);
-  if (ids.includes(DEFAULT_ACCOUNT_ID)) return DEFAULT_ACCOUNT_ID;
+  if (ids.includes(DEFAULT_ACCOUNT_ID)) {return DEFAULT_ACCOUNT_ID;}
   return ids[0] ?? DEFAULT_ACCOUNT_ID;
 }
 
@@ -77,7 +77,7 @@ function resolveAccountConfig(
     return undefined;
   }
   const direct = accounts[accountId] as MatrixAccountConfig | undefined;
-  if (direct) return direct;
+  if (direct) {return direct;}
   
   const normalized = normalizeAccountId(accountId);
   const matchKey = Object.keys(accounts).find(

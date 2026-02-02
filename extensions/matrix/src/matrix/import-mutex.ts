@@ -45,7 +45,7 @@ let credentialsModule: typeof import("./credentials.js") | null = null;
  * This is the most critical one - parallel imports of native modules crash.
  */
 export async function importCryptoNodejs(): Promise<typeof import("@matrix-org/matrix-sdk-crypto-nodejs")> {
-  if (cryptoNodejsModule) return cryptoNodejsModule;
+  if (cryptoNodejsModule) {return cryptoNodejsModule;}
   
   const mod = await serializedImport(
     "@matrix-org/matrix-sdk-crypto-nodejs",
@@ -59,7 +59,7 @@ export async function importCryptoNodejs(): Promise<typeof import("@matrix-org/m
  * Safely import the credentials module.
  */
 export async function importCredentials(): Promise<typeof import("./credentials.js")> {
-  if (credentialsModule) return credentialsModule;
+  if (credentialsModule) {return credentialsModule;}
   
   const mod = await serializedImport(
     "../credentials.js",
@@ -77,7 +77,7 @@ let matrixIndexModule: typeof import("./index.js") | null = null;
  * This is called from channel.ts during parallel account startup.
  */
 export async function importMatrixIndex(): Promise<typeof import("./index.js")> {
-  if (matrixIndexModule) return matrixIndexModule;
+  if (matrixIndexModule) {return matrixIndexModule;}
   
   const mod = await serializedImport(
     "./matrix/index.js",

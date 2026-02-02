@@ -18,7 +18,7 @@ import {
 } from "./storage.js";
 
 function sanitizeUserIdList(input: unknown, label: string): string[] {
-  if (input == null) return [];
+  if (input == null) {return [];}
   if (!Array.isArray(input)) {
     LogService.warn(
       "MatrixClientLite",

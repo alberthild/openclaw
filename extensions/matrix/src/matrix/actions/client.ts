@@ -19,11 +19,11 @@ export async function resolveActionClient(
   opts: MatrixActionClientOpts = {},
 ): Promise<MatrixActionClient> {
   ensureNodeRuntime();
-  if (opts.client) return { client: opts.client, stopOnDone: false };
+  if (opts.client) {return { client: opts.client, stopOnDone: false };}
   
   // Try to get the active client for the specified account
   const active = getActiveMatrixClient(opts.accountId);
-  if (active) return { client: active, stopOnDone: false };
+  if (active) {return { client: active, stopOnDone: false };}
   
   const shouldShareClient = Boolean(process.env.OPENCLAW_GATEWAY_PORT);
   if (shouldShareClient) {

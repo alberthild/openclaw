@@ -11,7 +11,7 @@ function normalizeTarget(raw: string): string {
 }
 
 export function normalizeThreadId(raw?: string | number | null): string | null {
-  if (raw === undefined || raw === null) return null;
+  if (raw === undefined || raw === null) {return null;}
   const trimmed = String(raw).trim();
   return trimmed ? trimmed : null;
 }
@@ -34,7 +34,7 @@ async function persistDirectRoom(
   const existing =
     directContent && !Array.isArray(directContent) ? directContent : {};
   const current = Array.isArray(existing[userId]) ? existing[userId] : [];
-  if (current[0] === roomId) return;
+  if (current[0] === roomId) {return;}
   const next = [roomId, ...current.filter((id) => id !== roomId)];
   try {
     await client.setAccountData(EventType.Direct, {
@@ -58,7 +58,7 @@ async function resolveDirectRoomId(
   }
 
   const cached = directRoomCache.get(trimmed);
-  if (cached) return cached;
+  if (cached) {return cached;}
 
   // 1) Fast path: use account data (m.direct) for *this* logged-in user (the bot).
   try {
@@ -88,7 +88,7 @@ async function resolveDirectRoomId(
       } catch {
         continue;
       }
-      if (!members.includes(trimmed)) continue;
+      if (!members.includes(trimmed)) {continue;}
       // Prefer classic 1:1 rooms, but allow larger rooms if requested.
       if (members.length === 2) {
         directRoomCache.set(trimmed, roomId);

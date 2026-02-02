@@ -7,15 +7,15 @@ function shouldSuppressMatrixHttpNotFound(
   module: string,
   messageOrObject: unknown[],
 ): boolean {
-  if (module !== "MatrixHttpClient") return false;
+  if (module !== "MatrixHttpClient") {return false;}
   return messageOrObject.some((entry) => {
-    if (!entry || typeof entry !== "object") return false;
+    if (!entry || typeof entry !== "object") {return false;}
     return (entry as { errcode?: string }).errcode === "M_NOT_FOUND";
   });
 }
 
 export function ensureMatrixSdkLoggingConfigured(): void {
-  if (matrixSdkLoggingConfigured) return;
+  if (matrixSdkLoggingConfigured) {return;}
   matrixSdkLoggingConfigured = true;
 
   LogService.setLogger({
@@ -28,7 +28,7 @@ export function ensureMatrixSdkLoggingConfigured(): void {
     warn: (module, ...messageOrObject) =>
       matrixSdkBaseLogger.warn(module, ...messageOrObject),
     error: (module, ...messageOrObject) => {
-      if (shouldSuppressMatrixHttpNotFound(module, messageOrObject)) return;
+      if (shouldSuppressMatrixHttpNotFound(module, messageOrObject)) {return;}
       matrixSdkBaseLogger.error(module, ...messageOrObject);
     },
   });

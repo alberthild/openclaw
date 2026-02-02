@@ -33,14 +33,14 @@ export function buildTextContent(
 
 export function applyMatrixFormatting(content: MatrixFormattedContent, body: string): void {
   const formatted = markdownToMatrixHtml(body ?? "");
-  if (!formatted) return;
+  if (!formatted) {return;}
   content.format = "org.matrix.custom.html";
   content.formatted_body = formatted;
 }
 
 export function buildReplyRelation(replyToId?: string): MatrixReplyRelation | undefined {
   const trimmed = replyToId?.trim();
-  if (!trimmed) return undefined;
+  if (!trimmed) {return undefined;}
   return { "m.in_reply_to": { event_id: trimmed } };
 }
 
@@ -79,7 +79,7 @@ export function resolveMatrixVoiceDecision(opts: {
   contentType?: string;
   fileName?: string;
 }): { useVoice: boolean } {
-  if (!opts.wantsVoice) return { useVoice: false };
+  if (!opts.wantsVoice) {return { useVoice: false };}
   if (
     getCore().media.isVoiceCompatibleAudio({
       contentType: opts.contentType,
