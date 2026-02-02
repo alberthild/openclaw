@@ -1,5 +1,6 @@
 import type { MatrixClient } from "@vector-im/matrix-bot-sdk";
 import type { PluginRuntime } from "openclaw/plugin-sdk";
+
 import type { MatrixAuth } from "../client.js";
 import type { MatrixRawEvent } from "./types.js";
 import { EventType } from "./types.js";
@@ -25,7 +26,41 @@ export function registerMatrixMonitorEvents(params: {
     onRoomMessage,
   } = params;
 
-  client.on("room.message", onRoomMessage);
+  // Track processed event IDs to avoid double-processing from room.message + room.decrypted_event
+  const processedEvents = new Set<string>();
+  const PROCESSED_EVENTS_MAX = 1000;
+  
+  const deduplicatedHandler = async (roomId: string, event: MatrixRawEvent, source: string) => {
+    const eventId = event?.event_id;
+    if (!eventId) {
+      logVerboseMessage(`matrix: ${source} event has no id, processing anyway`);
+      await onRoomMessage(roomId, event);
+      return;
+    }
+    
+    if (processedEvents.has(eventId)) {
+      logVerboseMessage(`matrix: ${source} skipping duplicate event id=${eventId}`);
+      return;
+    }
+    
+    processedEvents.add(eventId);
+    // Prevent memory leak by clearing old entries
+    if (processedEvents.size > PROCESSED_EVENTS_MAX) {
+      const iterator = processedEvents.values();
+      for (let i = 0; i < 100; i++) {
+        const next = iterator.next();
+        if (next.done) break;
+        processedEvents.delete(next.value);
+      }
+    }
+    
+    logVerboseMessage(`matrix: ${source} processing event id=${eventId} room=${roomId}`);
+    await onRoomMessage(roomId, event);
+  };
+
+  client.on("room.message", (roomId: string, event: MatrixRawEvent) => {
+    deduplicatedHandler(roomId, event, "room.message");
+  });
 
   client.on("room.encrypted_event", (roomId: string, event: MatrixRawEvent) => {
     const eventId = event?.event_id ?? "unknown";
@@ -36,12 +71,21 @@ export function registerMatrixMonitorEvents(params: {
   client.on("room.decrypted_event", (roomId: string, event: MatrixRawEvent) => {
     const eventId = event?.event_id ?? "unknown";
     const eventType = event?.type ?? "unknown";
+    const content = event?.content as Record<string, unknown> | undefined;
+    const hasFile = content && "file" in content;
+    const hasUrl = content && "url" in content;
+    // DEBUG: Always log decrypted events with file info
+    console.log(`[MATRIX-E2EE-DEBUG] decrypted_event room=${roomId} type=${eventType} id=${eventId} hasFile=${hasFile} hasUrl=${hasUrl}`);
     logVerboseMessage(`matrix: decrypted event room=${roomId} type=${eventType} id=${eventId}`);
+    // Process decrypted messages through the deduplicated handler
+    deduplicatedHandler(roomId, event, "room.decrypted_event");
   });
 
   client.on(
     "room.failed_decryption",
     async (roomId: string, event: MatrixRawEvent, error: Error) => {
+      // DEBUG: Always log failed decryption
+      console.log(`[MATRIX-E2EE-DEBUG] FAILED_DECRYPTION room=${roomId} id=${event.event_id ?? "unknown"} error=${error.message}`);
       logger.warn(
         { roomId, eventId: event.event_id, error: error.message },
         "Failed to decrypt message",
@@ -83,7 +127,8 @@ export function registerMatrixMonitorEvents(params: {
         const hint = formatNativeDependencyHint({
           packageName: "@matrix-org/matrix-sdk-crypto-nodejs",
           manager: "pnpm",
-          downloadCommand: "node node_modules/@matrix-org/matrix-sdk-crypto-nodejs/download-lib.js",
+          downloadCommand:
+            "node node_modules/@matrix-org/matrix-sdk-crypto-nodejs/download-lib.js",
         });
         const warning = `matrix: encryption enabled but crypto is unavailable; ${hint}`;
         logger.warn({ roomId }, warning);

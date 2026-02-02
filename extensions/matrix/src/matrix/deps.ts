@@ -1,8 +1,9 @@
-import type { RuntimeEnv } from "openclaw/plugin-sdk";
 import fs from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+
+import type { RuntimeEnv } from "openclaw/plugin-sdk";
 import { getMatrixRuntime } from "../runtime.js";
 
 const MATRIX_SDK_PACKAGE = "@vector-im/matrix-bot-sdk";
@@ -26,9 +27,7 @@ export async function ensureMatrixSdkInstalled(params: {
   runtime: RuntimeEnv;
   confirm?: (message: string) => Promise<boolean>;
 }): Promise<void> {
-  if (isMatrixSdkAvailable()) {
-    return;
-  }
+  if (isMatrixSdkAvailable()) return;
   const confirm = params.confirm;
   if (confirm) {
     const ok = await confirm("Matrix requires @vector-im/matrix-bot-sdk. Install now?");
@@ -53,8 +52,6 @@ export async function ensureMatrixSdkInstalled(params: {
     );
   }
   if (!isMatrixSdkAvailable()) {
-    throw new Error(
-      "Matrix dependency install completed but @vector-im/matrix-bot-sdk is still missing.",
-    );
+    throw new Error("Matrix dependency install completed but @vector-im/matrix-bot-sdk is still missing.");
   }
 }

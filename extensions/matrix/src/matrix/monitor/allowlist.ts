@@ -22,9 +22,7 @@ export function resolveMatrixAllowListMatch(params: {
   userName?: string;
 }): MatrixAllowListMatch {
   const allowList = params.allowList;
-  if (allowList.length === 0) {
-    return { allowed: false };
-  }
+  if (allowList.length === 0) return { allowed: false };
   if (allowList.includes("*")) {
     return { allowed: true, matchKey: "*", matchSource: "wildcard" };
   }
@@ -39,9 +37,7 @@ export function resolveMatrixAllowListMatch(params: {
     { value: localPart, source: "localpart" },
   ];
   for (const candidate of candidates) {
-    if (!candidate.value) {
-      continue;
-    }
+    if (!candidate.value) continue;
     if (allowList.includes(candidate.value)) {
       return {
         allowed: true,

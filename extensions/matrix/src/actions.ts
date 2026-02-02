@@ -7,16 +7,14 @@ import {
   type ChannelMessageActionName,
   type ChannelToolSend,
 } from "openclaw/plugin-sdk";
-import type { CoreConfig } from "./types.js";
 import { resolveMatrixAccount } from "./matrix/accounts.js";
 import { handleMatrixAction } from "./tool-actions.js";
+import type { CoreConfig } from "./types.js";
 
 export const matrixMessageActions: ChannelMessageActionAdapter = {
   listActions: ({ cfg }) => {
     const account = resolveMatrixAccount({ cfg: cfg as CoreConfig });
-    if (!account.enabled || !account.configured) {
-      return [];
-    }
+    if (!account.enabled || !account.configured) return [];
     const gate = createActionGate((cfg as CoreConfig).channels?.matrix?.actions);
     const actions = new Set<ChannelMessageActionName>(["send", "poll"]);
     if (gate("reactions")) {
@@ -33,28 +31,23 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
       actions.add("unpin");
       actions.add("list-pins");
     }
-    if (gate("memberInfo")) {
-      actions.add("member-info");
-    }
-    if (gate("channelInfo")) {
-      actions.add("channel-info");
-    }
+    if (gate("memberInfo")) actions.add("member-info");
+    if (gate("channelInfo")) actions.add("channel-info");
     return Array.from(actions);
   },
   supportsAction: ({ action }) => action !== "poll",
   extractToolSend: ({ args }): ChannelToolSend | null => {
     const action = typeof args.action === "string" ? args.action.trim() : "";
-    if (action !== "sendMessage") {
-      return null;
-    }
+    if (action !== "sendMessage") return null;
     const to = typeof args.to === "string" ? args.to : undefined;
-    if (!to) {
-      return null;
-    }
+    if (!to) return null;
     return { to };
   },
   handleAction: async (ctx: ChannelMessageActionContext) => {
     const { action, params, cfg } = ctx;
+    // Get accountId from context for multi-account support
+    const accountId = (ctx as { accountId?: string }).accountId ?? undefined;
+    
     const resolveRoomId = () =>
       readStringParam(params, "roomId") ??
       readStringParam(params, "channelId") ??
@@ -77,6 +70,7 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
           mediaUrl: mediaUrl ?? undefined,
           replyToId: replyTo ?? undefined,
           threadId: threadId ?? undefined,
+          accountId,
         },
         cfg,
       );
@@ -93,6 +87,7 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
           messageId,
           emoji,
           remove,
+          accountId,
         },
         cfg,
       );
@@ -107,6 +102,7 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
           roomId: resolveRoomId(),
           messageId,
           limit,
+          accountId,
         },
         cfg,
       );
@@ -121,6 +117,7 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
           limit,
           before: readStringParam(params, "before"),
           after: readStringParam(params, "after"),
+          accountId,
         },
         cfg,
       );
@@ -135,6 +132,7 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
           roomId: resolveRoomId(),
           messageId,
           content,
+          accountId,
         },
         cfg,
       );
@@ -147,6 +145,7 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
           action: "deleteMessage",
           roomId: resolveRoomId(),
           messageId,
+          accountId,
         },
         cfg,
       );
@@ -163,6 +162,7 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
             action === "pin" ? "pinMessage" : action === "unpin" ? "unpinMessage" : "listPins",
           roomId: resolveRoomId(),
           messageId,
+          accountId,
         },
         cfg,
       );
@@ -175,6 +175,7 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
           action: "memberInfo",
           userId,
           roomId: readStringParam(params, "roomId") ?? readStringParam(params, "channelId"),
+          accountId,
         },
         cfg,
       );
@@ -185,6 +186,7 @@ export const matrixMessageActions: ChannelMessageActionAdapter = {
         {
           action: "channelInfo",
           roomId: resolveRoomId(),
+          accountId,
         },
         cfg,
       );

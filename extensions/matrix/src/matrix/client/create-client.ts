@@ -1,11 +1,15 @@
-import type { IStorageProvider, ICryptoStorageProvider } from "@vector-im/matrix-bot-sdk";
+import fs from "node:fs";
+
 import {
   LogService,
   MatrixClient,
   SimpleFsStorageProvider,
   RustSdkCryptoStorageProvider,
 } from "@vector-im/matrix-bot-sdk";
-import fs from "node:fs";
+
+import { importCryptoNodejs } from "../import-mutex.js";
+import type { IStorageProvider, ICryptoStorageProvider } from "@vector-im/matrix-bot-sdk";
+
 import { ensureMatrixSdkLoggingConfigured } from "./logging.js";
 import {
   maybeMigrateLegacyStorage,
@@ -14,9 +18,7 @@ import {
 } from "./storage.js";
 
 function sanitizeUserIdList(input: unknown, label: string): string[] {
-  if (input == null) {
-    return [];
-  }
+  if (input == null) return [];
   if (!Array.isArray(input)) {
     LogService.warn(
       "MatrixClientLite",
@@ -65,14 +67,14 @@ export async function createMatrixClient(params: {
     fs.mkdirSync(storagePaths.cryptoPath, { recursive: true });
 
     try {
-      const { StoreType } = await import("@matrix-org/matrix-sdk-crypto-nodejs");
-      cryptoStorage = new RustSdkCryptoStorageProvider(storagePaths.cryptoPath, StoreType.Sqlite);
-    } catch (err) {
-      LogService.warn(
-        "MatrixClientLite",
-        "Failed to initialize crypto storage, E2EE disabled:",
-        err,
+      // Use serialized import to prevent race conditions with native Rust module
+      const { StoreType } = await importCryptoNodejs();
+      cryptoStorage = new RustSdkCryptoStorageProvider(
+        storagePaths.cryptoPath,
+        StoreType.Sqlite,
       );
+    } catch (err) {
+      LogService.warn("MatrixClientLite", "Failed to initialize crypto storage, E2EE disabled:", err);
     }
   }
 
@@ -83,7 +85,12 @@ export async function createMatrixClient(params: {
     accountId: params.accountId,
   });
 
-  const client = new MatrixClient(params.homeserver, params.accessToken, storage, cryptoStorage);
+  const client = new MatrixClient(
+    params.homeserver,
+    params.accessToken,
+    storage,
+    cryptoStorage,
+  );
 
   if (client.crypto) {
     const originalUpdateSyncData = client.crypto.updateSyncData.bind(client.crypto);

@@ -1,5 +1,6 @@
-import type { PluginRuntime } from "openclaw/plugin-sdk";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { PluginRuntime } from "openclaw/plugin-sdk";
 import { setMatrixRuntime } from "../runtime.js";
 
 vi.mock("@vector-im/matrix-bot-sdk", () => ({

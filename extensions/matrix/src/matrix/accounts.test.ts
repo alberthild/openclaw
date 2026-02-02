@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { CoreConfig } from "../types.js";
 import { resolveMatrixAccount } from "./accounts.js";
 

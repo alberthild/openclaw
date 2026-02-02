@@ -1,28 +1,70 @@
 import { MatrixClient } from "@vector-im/matrix-bot-sdk";
-import type { CoreConfig } from "../types.js";
-import type { MatrixAuth, MatrixResolvedConfig } from "./types.js";
+import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk";
+
+import type { CoreConfig, MatrixAccountConfig, MatrixConfig } from "../types.js";
 import { getMatrixRuntime } from "../../runtime.js";
 import { ensureMatrixSdkLoggingConfigured } from "./logging.js";
+import type { MatrixAuth, MatrixResolvedConfig } from "./types.js";
+import { importCredentials } from "../import-mutex.js";
 
 function clean(value?: string): string {
   return value?.trim() ?? "";
 }
 
+/**
+ * Get account-specific config from channels.matrix.accounts[accountId]
+ */
+function resolveAccountConfig(
+  cfg: CoreConfig,
+  accountId: string,
+): MatrixAccountConfig | undefined {
+  const accounts = cfg.channels?.matrix?.accounts;
+  if (!accounts || typeof accounts !== "object") {
+    return undefined;
+  }
+  const direct = accounts[accountId] as MatrixAccountConfig | undefined;
+  if (direct) return direct;
+  
+  const normalized = normalizeAccountId(accountId);
+  const matchKey = Object.keys(accounts).find(
+    (key) => normalizeAccountId(key) === normalized
+  );
+  return matchKey ? (accounts[matchKey] as MatrixAccountConfig | undefined) : undefined;
+}
+
+/**
+ * Merge base matrix config with account-specific overrides
+ */
+function mergeMatrixAccountConfig(cfg: CoreConfig, accountId: string): MatrixAccountConfig {
+  const base = cfg.channels?.matrix ?? {};
+  const { accounts: _ignored, ...baseConfig } = base as MatrixConfig;
+  const accountConfig = resolveAccountConfig(cfg, accountId) ?? {};
+  return { ...baseConfig, ...accountConfig };
+}
+
 export function resolveMatrixConfig(
   cfg: CoreConfig = getMatrixRuntime().config.loadConfig() as CoreConfig,
   env: NodeJS.ProcessEnv = process.env,
+  accountId?: string,
 ): MatrixResolvedConfig {
-  const matrix = cfg.channels?.matrix ?? {};
-  const homeserver = clean(matrix.homeserver) || clean(env.MATRIX_HOMESERVER);
-  const userId = clean(matrix.userId) || clean(env.MATRIX_USER_ID);
-  const accessToken = clean(matrix.accessToken) || clean(env.MATRIX_ACCESS_TOKEN) || undefined;
-  const password = clean(matrix.password) || clean(env.MATRIX_PASSWORD) || undefined;
-  const deviceName = clean(matrix.deviceName) || clean(env.MATRIX_DEVICE_NAME) || undefined;
+  const normalizedAccountId = normalizeAccountId(accountId);
+  const isDefaultAccount = normalizedAccountId === DEFAULT_ACCOUNT_ID || normalizedAccountId === "default";
+  
+  // Get merged config for this account
+  const merged = mergeMatrixAccountConfig(cfg, normalizedAccountId);
+  
+  // For default account, allow env var fallbacks
+  const homeserver = clean(merged.homeserver) || (isDefaultAccount ? clean(env.MATRIX_HOMESERVER) : "");
+  const userId = clean(merged.userId) || (isDefaultAccount ? clean(env.MATRIX_USER_ID) : "");
+  const accessToken = clean(merged.accessToken) || (isDefaultAccount ? clean(env.MATRIX_ACCESS_TOKEN) : "") || undefined;
+  const password = clean(merged.password) || (isDefaultAccount ? clean(env.MATRIX_PASSWORD) : "") || undefined;
+  const deviceName = clean(merged.deviceName) || (isDefaultAccount ? clean(env.MATRIX_DEVICE_NAME) : "") || undefined;
   const initialSyncLimit =
-    typeof matrix.initialSyncLimit === "number"
-      ? Math.max(0, Math.floor(matrix.initialSyncLimit))
+    typeof merged.initialSyncLimit === "number"
+      ? Math.max(0, Math.floor(merged.initialSyncLimit))
       : undefined;
-  const encryption = matrix.encryption ?? false;
+  const encryption = merged.encryption ?? false;
+  
   return {
     homeserver,
     userId,
@@ -37,22 +79,30 @@ export function resolveMatrixConfig(
 export async function resolveMatrixAuth(params?: {
   cfg?: CoreConfig;
   env?: NodeJS.ProcessEnv;
+  accountId?: string;
 }): Promise<MatrixAuth> {
   const cfg = params?.cfg ?? (getMatrixRuntime().config.loadConfig() as CoreConfig);
   const env = params?.env ?? process.env;
-  const resolved = resolveMatrixConfig(cfg, env);
+  const accountId = params?.accountId;
+  const resolved = resolveMatrixConfig(cfg, env, accountId);
+  
   if (!resolved.homeserver) {
-    throw new Error("Matrix homeserver is required (matrix.homeserver)");
+    throw new Error(`Matrix homeserver is required for account ${accountId ?? "default"} (matrix.homeserver)`);
   }
 
+  const normalizedAccountId = normalizeAccountId(accountId);
+  const isDefaultAccount = normalizedAccountId === DEFAULT_ACCOUNT_ID || normalizedAccountId === "default";
+
+  // Only use cached credentials for default account
+  // Use serialized import to prevent race conditions during parallel account startup
   const {
     loadMatrixCredentials,
     saveMatrixCredentials,
     credentialsMatchConfig,
     touchMatrixCredentials,
-  } = await import("../credentials.js");
+  } = await importCredentials();
 
-  const cached = loadMatrixCredentials(env);
+  const cached = isDefaultAccount ? loadMatrixCredentials(env) : null;
   const cachedCredentials =
     cached &&
     credentialsMatchConfig(cached, {
@@ -71,13 +121,15 @@ export async function resolveMatrixAuth(params?: {
       const tempClient = new MatrixClient(resolved.homeserver, resolved.accessToken);
       const whoami = await tempClient.getUserId();
       userId = whoami;
-      // Save the credentials with the fetched userId
-      saveMatrixCredentials({
-        homeserver: resolved.homeserver,
-        userId,
-        accessToken: resolved.accessToken,
-      });
-    } else if (cachedCredentials && cachedCredentials.accessToken === resolved.accessToken) {
+      // Only save credentials for default account
+      if (isDefaultAccount) {
+        saveMatrixCredentials({
+          homeserver: resolved.homeserver,
+          userId,
+          accessToken: resolved.accessToken,
+        });
+      }
+    } else if (isDefaultAccount && cachedCredentials && cachedCredentials.accessToken === resolved.accessToken) {
       touchMatrixCredentials(env);
     }
     return {
@@ -90,7 +142,8 @@ export async function resolveMatrixAuth(params?: {
     };
   }
 
-  if (cachedCredentials) {
+  // Try cached credentials (only for default account)
+  if (isDefaultAccount && cachedCredentials) {
     touchMatrixCredentials(env);
     return {
       homeserver: cachedCredentials.homeserver,
@@ -103,12 +156,14 @@ export async function resolveMatrixAuth(params?: {
   }
 
   if (!resolved.userId) {
-    throw new Error("Matrix userId is required when no access token is configured (matrix.userId)");
+    throw new Error(
+      `Matrix userId is required for account ${accountId ?? "default"} when no access token is configured`,
+    );
   }
 
   if (!resolved.password) {
     throw new Error(
-      "Matrix password is required when no access token is configured (matrix.password)",
+      `Matrix password is required for account ${accountId ?? "default"} when no access token is configured`,
     );
   }
 
@@ -126,7 +181,7 @@ export async function resolveMatrixAuth(params?: {
 
   if (!loginResponse.ok) {
     const errorText = await loginResponse.text();
-    throw new Error(`Matrix login failed: ${errorText}`);
+    throw new Error(`Matrix login failed for account ${accountId ?? "default"}: ${errorText}`);
   }
 
   const login = (await loginResponse.json()) as {
@@ -137,7 +192,7 @@ export async function resolveMatrixAuth(params?: {
 
   const accessToken = login.access_token?.trim();
   if (!accessToken) {
-    throw new Error("Matrix login did not return an access token");
+    throw new Error(`Matrix login did not return an access token for account ${accountId ?? "default"}`);
   }
 
   const auth: MatrixAuth = {
@@ -149,12 +204,15 @@ export async function resolveMatrixAuth(params?: {
     encryption: resolved.encryption,
   };
 
-  saveMatrixCredentials({
-    homeserver: auth.homeserver,
-    userId: auth.userId,
-    accessToken: auth.accessToken,
-    deviceId: login.device_id,
-  });
+  // Only save credentials for default account
+  if (isDefaultAccount) {
+    saveMatrixCredentials({
+      homeserver: auth.homeserver,
+      userId: auth.userId,
+      accessToken: auth.accessToken,
+      deviceId: login.device_id,
+    });
+  }
 
   return auth;
 }
