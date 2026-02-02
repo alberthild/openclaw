@@ -1,11 +1,10 @@
 import { MatrixClient } from "@vector-im/matrix-bot-sdk";
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk";
-
 import type { CoreConfig, MatrixAccountConfig, MatrixConfig } from "../types.js";
-import { getMatrixRuntime } from "../../runtime.js";
-import { ensureMatrixSdkLoggingConfigured } from "./logging.js";
 import type { MatrixAuth, MatrixResolvedConfig } from "./types.js";
+import { getMatrixRuntime } from "../../runtime.js";
 import { importCredentials } from "../import-mutex.js";
+import { ensureMatrixSdkLoggingConfigured } from "./logging.js";
 
 function clean(value?: string): string {
   return value?.trim() ?? "";
@@ -14,21 +13,18 @@ function clean(value?: string): string {
 /**
  * Get account-specific config from channels.matrix.accounts[accountId]
  */
-function resolveAccountConfig(
-  cfg: CoreConfig,
-  accountId: string,
-): MatrixAccountConfig | undefined {
+function resolveAccountConfig(cfg: CoreConfig, accountId: string): MatrixAccountConfig | undefined {
   const accounts = cfg.channels?.matrix?.accounts;
   if (!accounts || typeof accounts !== "object") {
     return undefined;
   }
   const direct = accounts[accountId] as MatrixAccountConfig | undefined;
-  if (direct) {return direct;}
-  
+  if (direct) {
+    return direct;
+  }
+
   const normalized = normalizeAccountId(accountId);
-  const matchKey = Object.keys(accounts).find(
-    (key) => normalizeAccountId(key) === normalized
-  );
+  const matchKey = Object.keys(accounts).find((key) => normalizeAccountId(key) === normalized);
   return matchKey ? accounts[matchKey] : undefined;
 }
 
@@ -48,23 +44,32 @@ export function resolveMatrixConfig(
   accountId?: string,
 ): MatrixResolvedConfig {
   const normalizedAccountId = normalizeAccountId(accountId);
-  const isDefaultAccount = normalizedAccountId === DEFAULT_ACCOUNT_ID || normalizedAccountId === "default";
-  
+  const isDefaultAccount =
+    normalizedAccountId === DEFAULT_ACCOUNT_ID || normalizedAccountId === "default";
+
   // Get merged config for this account
   const merged = mergeMatrixAccountConfig(cfg, normalizedAccountId);
-  
+
   // For default account, allow env var fallbacks
-  const homeserver = clean(merged.homeserver) || (isDefaultAccount ? clean(env.MATRIX_HOMESERVER) : "");
+  const homeserver =
+    clean(merged.homeserver) || (isDefaultAccount ? clean(env.MATRIX_HOMESERVER) : "");
   const userId = clean(merged.userId) || (isDefaultAccount ? clean(env.MATRIX_USER_ID) : "");
-  const accessToken = clean(merged.accessToken) || (isDefaultAccount ? clean(env.MATRIX_ACCESS_TOKEN) : "") || undefined;
-  const password = clean(merged.password) || (isDefaultAccount ? clean(env.MATRIX_PASSWORD) : "") || undefined;
-  const deviceName = clean(merged.deviceName) || (isDefaultAccount ? clean(env.MATRIX_DEVICE_NAME) : "") || undefined;
+  const accessToken =
+    clean(merged.accessToken) ||
+    (isDefaultAccount ? clean(env.MATRIX_ACCESS_TOKEN) : "") ||
+    undefined;
+  const password =
+    clean(merged.password) || (isDefaultAccount ? clean(env.MATRIX_PASSWORD) : "") || undefined;
+  const deviceName =
+    clean(merged.deviceName) ||
+    (isDefaultAccount ? clean(env.MATRIX_DEVICE_NAME) : "") ||
+    undefined;
   const initialSyncLimit =
     typeof merged.initialSyncLimit === "number"
       ? Math.max(0, Math.floor(merged.initialSyncLimit))
       : undefined;
   const encryption = merged.encryption ?? false;
-  
+
   return {
     homeserver,
     userId,
@@ -85,13 +90,16 @@ export async function resolveMatrixAuth(params?: {
   const env = params?.env ?? process.env;
   const accountId = params?.accountId;
   const resolved = resolveMatrixConfig(cfg, env, accountId);
-  
+
   if (!resolved.homeserver) {
-    throw new Error(`Matrix homeserver is required for account ${accountId ?? "default"} (matrix.homeserver)`);
+    throw new Error(
+      `Matrix homeserver is required for account ${accountId ?? "default"} (matrix.homeserver)`,
+    );
   }
 
   const normalizedAccountId = normalizeAccountId(accountId);
-  const isDefaultAccount = normalizedAccountId === DEFAULT_ACCOUNT_ID || normalizedAccountId === "default";
+  const isDefaultAccount =
+    normalizedAccountId === DEFAULT_ACCOUNT_ID || normalizedAccountId === "default";
 
   // Only use cached credentials for default account
   // Use serialized import to prevent race conditions during parallel account startup
@@ -129,7 +137,11 @@ export async function resolveMatrixAuth(params?: {
           accessToken: resolved.accessToken,
         });
       }
-    } else if (isDefaultAccount && cachedCredentials && cachedCredentials.accessToken === resolved.accessToken) {
+    } else if (
+      isDefaultAccount &&
+      cachedCredentials &&
+      cachedCredentials.accessToken === resolved.accessToken
+    ) {
       touchMatrixCredentials(env);
     }
     return {
@@ -192,7 +204,9 @@ export async function resolveMatrixAuth(params?: {
 
   const accessToken = login.access_token?.trim();
   if (!accessToken) {
-    throw new Error(`Matrix login did not return an access token for account ${accountId ?? "default"}`);
+    throw new Error(
+      `Matrix login did not return an access token for account ${accountId ?? "default"}`,
+    );
   }
 
   const auth: MatrixAuth = {

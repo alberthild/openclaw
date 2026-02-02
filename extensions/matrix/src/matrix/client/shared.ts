@@ -67,7 +67,9 @@ async function ensureSharedClientStarted(params: {
   encryption?: boolean;
   accountId?: string | null;
 }): Promise<void> {
-  if (params.state.started) {return;}
+  if (params.state.started) {
+    return;
+  }
 
   const accountKey = getAccountKey(params.accountId);
   const existingPromise = sharedClientStartPromises.get(accountKey);

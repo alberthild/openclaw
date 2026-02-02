@@ -1,6 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { MatrixClient } from "@vector-im/matrix-bot-sdk";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EventType } from "./types.js";
 
 let resolveMatrixRoomId: typeof import("./targets.js").resolveMatrixRoomId;
@@ -37,10 +36,7 @@ describe("resolveMatrixRoomId", () => {
     const client = {
       getAccountData: vi.fn().mockRejectedValue(new Error("nope")),
       getJoinedRooms: vi.fn().mockResolvedValue([roomId]),
-      getJoinedRoomMembers: vi.fn().mockResolvedValue([
-        "@bot:example.org",
-        userId,
-      ]),
+      getJoinedRoomMembers: vi.fn().mockResolvedValue(["@bot:example.org", userId]),
       setAccountData,
     } as unknown as MatrixClient;
 
@@ -80,11 +76,9 @@ describe("resolveMatrixRoomId", () => {
     const client = {
       getAccountData: vi.fn().mockRejectedValue(new Error("nope")),
       getJoinedRooms: vi.fn().mockResolvedValue([roomId]),
-      getJoinedRoomMembers: vi.fn().mockResolvedValue([
-        "@bot:example.org",
-        userId,
-        "@extra:example.org",
-      ]),
+      getJoinedRoomMembers: vi
+        .fn()
+        .mockResolvedValue(["@bot:example.org", userId, "@extra:example.org"]),
       setAccountData: vi.fn().mockResolvedValue(undefined),
     } as unknown as MatrixClient;
 

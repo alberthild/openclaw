@@ -9,7 +9,10 @@ function normalizeAccountKey(accountId?: string | null): string {
   return accountId?.trim().toLowerCase() || DEFAULT_ACCOUNT_KEY;
 }
 
-export function setActiveMatrixClient(client: MatrixClient | null, accountId?: string | null): void {
+export function setActiveMatrixClient(
+  client: MatrixClient | null,
+  accountId?: string | null,
+): void {
   const key = normalizeAccountKey(accountId);
   if (client) {
     activeClients.set(key, client);
@@ -21,7 +24,9 @@ export function setActiveMatrixClient(client: MatrixClient | null, accountId?: s
 export function getActiveMatrixClient(accountId?: string | null): MatrixClient | null {
   const key = normalizeAccountKey(accountId);
   const client = activeClients.get(key);
-  if (client) {return client;}
+  if (client) {
+    return client;
+  }
   // Fallback: if specific account not found, try default
   if (key !== DEFAULT_ACCOUNT_KEY) {
     return activeClients.get(DEFAULT_ACCOUNT_KEY) ?? null;

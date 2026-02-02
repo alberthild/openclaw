@@ -1,5 +1,6 @@
-import { getMatrixRuntime } from "../../runtime.js";
 import type { CoreConfig } from "../types.js";
+import type { MatrixActionClient, MatrixActionClientOpts } from "./types.js";
+import { getMatrixRuntime } from "../../runtime.js";
 import { getActiveMatrixClient } from "../active-client.js";
 import {
   createMatrixClient,
@@ -7,7 +8,6 @@ import {
   resolveMatrixAuth,
   resolveSharedMatrixClient,
 } from "../client.js";
-import type { MatrixActionClient, MatrixActionClientOpts } from "./types.js";
 
 export function ensureNodeRuntime() {
   if (isBunRuntime()) {
@@ -19,12 +19,16 @@ export async function resolveActionClient(
   opts: MatrixActionClientOpts = {},
 ): Promise<MatrixActionClient> {
   ensureNodeRuntime();
-  if (opts.client) {return { client: opts.client, stopOnDone: false };}
-  
+  if (opts.client) {
+    return { client: opts.client, stopOnDone: false };
+  }
+
   // Try to get the active client for the specified account
   const active = getActiveMatrixClient(opts.accountId);
-  if (active) {return { client: active, stopOnDone: false };}
-  
+  if (active) {
+    return { client: active, stopOnDone: false };
+  }
+
   const shouldShareClient = Boolean(process.env.OPENCLAW_GATEWAY_PORT);
   if (shouldShareClient) {
     const client = await resolveSharedMatrixClient({
