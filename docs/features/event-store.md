@@ -5,12 +5,14 @@ OpenClaw can persist all agent events to NATS JetStream, enabling event-sourced 
 ## Overview
 
 When enabled, every interaction becomes an immutable event:
+
 - User/assistant messages
 - Tool calls and results
 - Session lifecycle (start/end)
 - Custom events from extensions
 
 Events are stored in NATS JetStream and can be:
+
 - Queried for context building
 - Replayed for debugging
 - Shared across agents (with isolation)
@@ -34,11 +36,11 @@ gateway:
 ```yaml
 gateway:
   eventStore:
-    enabled: true                          # Enable event publishing
-    url: nats://user:pass@localhost:4222   # NATS connection URL
-    streamName: openclaw-events            # JetStream stream name
-    subjectPrefix: openclaw.events         # Subject prefix for events
-    
+    enabled: true # Enable event publishing
+    url: nats://user:pass@localhost:4222 # NATS connection URL
+    streamName: openclaw-events # JetStream stream name
+    subjectPrefix: openclaw.events # Subject prefix for events
+
     # Multi-agent configuration (optional)
     agents:
       my-agent:
@@ -49,30 +51,30 @@ gateway:
 
 ## Event Types
 
-| Type | Description |
-|------|-------------|
+| Type                       | Description                     |
+| -------------------------- | ------------------------------- |
 | `conversation.message.out` | Messages sent to/from the model |
-| `conversation.tool_call` | Tool invocations |
-| `conversation.tool_result` | Tool results |
-| `lifecycle.start` | Session started |
-| `lifecycle.end` | Session ended |
+| `conversation.tool_call`   | Tool invocations                |
+| `conversation.tool_result` | Tool results                    |
+| `lifecycle.start`          | Session started                 |
+| `lifecycle.end`            | Session ended                   |
 
 ## Event Schema
 
 ```typescript
 interface OpenClawEvent {
-  id: string;           // Unique event ID
-  timestamp: number;    // Unix milliseconds
-  agent: string;        // Agent identifier
-  session: string;      // Session key
-  type: string;         // Event type
-  visibility: string;   // 'internal' | 'public'
+  id: string; // Unique event ID
+  timestamp: number; // Unix milliseconds
+  agent: string; // Agent identifier
+  session: string; // Session key
+  type: string; // Event type
+  visibility: string; // 'internal' | 'public'
   payload: {
-    runId: string;      // Current run ID
-    stream: string;     // Event stream type
-    data: any;          // Event-specific data
+    runId: string; // Current run ID
+    stream: string; // Event stream type
+    data: any; // Event-specific data
     sessionKey: string;
-    seq: number;        // Sequence in run
+    seq: number; // Sequence in run
     ts: number;
   };
   meta: {
@@ -97,6 +99,7 @@ This gives the agent memory of recent interactions without manual file managemen
 ### Context Format
 
 The injected context includes:
+
 - Recent conversation snippets (deduplicated)
 - Active topics mentioned
 - Event count and timeframe
@@ -112,7 +115,7 @@ gateway:
     url: nats://main:password@localhost:4222
     streamName: openclaw-events
     subjectPrefix: openclaw.events.main
-    
+
     agents:
       assistant-one:
         url: nats://assistant1:pass@localhost:4222
@@ -153,13 +156,14 @@ nats stream add openclaw-events \
 See [NATS Security Documentation](https://docs.nats.io/running-a-nats-service/configuration/securing_nats) for setting up accounts and permissions.
 
 Example secure config:
+
 ```
 accounts {
   AGENTS: {
     jetstream: enabled
     users: [
       { user: main, password: "xxx", permissions: { publish: [">"], subscribe: [">"] } },
-      { user: agent1, password: "xxx", permissions: { 
+      { user: agent1, password: "xxx", permissions: {
           publish: ["openclaw.events.agent1.>", "$JS.API.>", "_INBOX.>"],
           subscribe: ["openclaw.events.agent1.>", "_INBOX.>", "$JS.API.>"]
       }}
@@ -181,6 +185,7 @@ node scripts/migrate-to-eventstore.mjs
 ```
 
 The migration script imports:
+
 - Daily notes (`memory/*.md`)
 - Long-term memory (`MEMORY.md`)
 - Knowledge graph entries (`life/areas/`)
@@ -204,16 +209,16 @@ nats consumer next openclaw-events reader --count 10
 ### Programmatically
 
 ```typescript
-import { connect, StringCodec } from 'nats';
+import { connect, StringCodec } from "nats";
 
-const nc = await connect({ servers: 'localhost:4222' });
+const nc = await connect({ servers: "localhost:4222" });
 const js = nc.jetstream();
 const jsm = await nc.jetstreamManager();
 
 // Get last 100 events
-const info = await jsm.streams.info('openclaw-events');
+const info = await jsm.streams.info("openclaw-events");
 for (let seq = info.state.last_seq - 100; seq <= info.state.last_seq; seq++) {
-  const msg = await jsm.streams.getMessage('openclaw-events', { seq });
+  const msg = await jsm.streams.getMessage("openclaw-events", { seq });
   const event = JSON.parse(StringCodec().decode(msg.data));
   console.log(event.type, event.timestamp);
 }
