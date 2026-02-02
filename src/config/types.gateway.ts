@@ -207,6 +207,17 @@ export type GatewayNodesConfig = {
   denyCommands?: string[];
 };
 
+export type EventStoreConfig = {
+  /** Enable Event Store (NATS JetStream) integration. */
+  enabled?: boolean;
+  /** NATS server URL (default: nats://localhost:4222). */
+  natsUrl?: string;
+  /** JetStream stream name (default: openclaw-events). */
+  streamName?: string;
+  /** Subject prefix for events (default: openclaw.events). */
+  subjectPrefix?: string;
+};
+
 export type GatewayConfig = {
   /** Single multiplexed port for Gateway WS + HTTP (default: 18789). */
   port?: number;
@@ -235,6 +246,8 @@ export type GatewayConfig = {
   tls?: GatewayTlsConfig;
   http?: GatewayHttpConfig;
   nodes?: GatewayNodesConfig;
+  /** Event Store (NATS JetStream) configuration for persistent event logging. */
+  eventStore?: EventStoreConfig;
   /**
    * IPs of trusted reverse proxies (e.g. Traefik, nginx). When a connection
    * arrives from one of these IPs, the Gateway trusts `x-forwarded-for` (or
