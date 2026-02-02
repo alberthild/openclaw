@@ -35,7 +35,9 @@ function buildSharedClientKey(auth: MatrixAuth, accountId?: string | null): stri
 }
 
 function getAccountKey(accountId?: string | null): string {
-  return accountId ?? DEFAULT_ACCOUNT_KEY;
+  // Normalize account key to avoid "Main" vs "main" mismatches
+  const key = accountId ?? DEFAULT_ACCOUNT_KEY;
+  return key.toLowerCase().trim();
 }
 
 async function createSharedMatrixClient(params: {
@@ -258,6 +260,9 @@ export function stopSharedClient(accountId?: string | null): void {
     if (client) {
       client.client.stop();
       sharedClients.delete(accountKey);
+      // Also clear associated promises to allow clean restart
+      sharedClientPromises.delete(accountKey);
+      sharedClientStartPromises.delete(accountKey);
     }
     // Also clear legacy reference if it matches
     if (sharedClientState?.key === client?.key) {
@@ -265,9 +270,16 @@ export function stopSharedClient(accountId?: string | null): void {
     }
   } else {
     // Stop all clients (legacy behavior + all multi-account clients)
-    for (const [key, client] of sharedClients) {
-      client.client.stop();
+    // Collect keys first to avoid mutating Map while iterating
+    const keys = [...sharedClients.keys()];
+    for (const key of keys) {
+      const client = sharedClients.get(key);
+      if (client) {
+        client.client.stop();
+      }
       sharedClients.delete(key);
+      sharedClientPromises.delete(key);
+      sharedClientStartPromises.delete(key);
     }
     if (sharedClientState) {
       sharedClientState.client.stop();

@@ -1,13 +1,4 @@
 import type { LocationMessageEventContent, MatrixClient } from "@vector-im/matrix-bot-sdk";
-import fs from "node:fs";
-
-// File-based debug logging
-const DEBUG_LOG = "/home/keller/clawd/agents/mondo-assistant/matrix-debug.log";
-function debugWrite(msg: string) {
-  try {
-    fs.appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] ${msg}\n`);
-  } catch { /* ignore */ }
-}
 
 import {
   createReplyPrefixContext,
@@ -119,11 +110,9 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
   } = params;
 
   return async (roomId: string, event: MatrixRawEvent) => {
-    debugWrite(`HANDLER-START: room=${roomId} eventId=${event.event_id ?? "unknown"} type=${event.type} sender=${event.sender} accountId=${accountId ?? "default"}`);
     try {
       const eventType = event.type;
       if (eventType === EventType.RoomMessageEncrypted) {
-        debugWrite(`HANDLER: SKIP encrypted event (should be auto-decrypted)`);
         // Encrypted messages are decrypted automatically by @vector-im/matrix-bot-sdk with crypto enabled
         return;
       }
@@ -342,11 +331,9 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
       
       // DEBUG: Log media detection
       const msgtype = "msgtype" in content ? content.msgtype : undefined;
-      debugWrite(`HANDLER: room=${roomId} sender=${senderId} msgtype=${msgtype} contentUrl=${contentUrl ?? "none"} mediaUrl=${mediaUrl ?? "none"} accountId=${accountId ?? "default"}`);
       logVerboseMessage(`matrix: content check msgtype=${msgtype} contentUrl=${contentUrl ?? "none"} mediaUrl=${mediaUrl ?? "none"} rawBody="${rawBody.slice(0,50)}"`);
       
       if (!rawBody && !mediaUrl) {
-        debugWrite(`HANDLER: SKIP - no rawBody and no mediaUrl`);
         return;
       }
 
@@ -358,7 +345,6 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
       const contentSize =
         typeof contentInfo?.size === "number" ? contentInfo.size : undefined;
       if (mediaUrl?.startsWith("mxc://")) {
-        debugWrite(`HANDLER: attempting media download url=${mediaUrl} size=${contentSize ?? "unknown"} maxBytes=${mediaMaxBytes}`);
         logVerboseMessage(`matrix: attempting media download url=${mediaUrl} size=${contentSize ?? "unknown"} maxBytes=${mediaMaxBytes}`);
         try {
           media = await downloadMatrixMedia({
@@ -369,14 +355,11 @@ export function createMatrixRoomMessageHandler(params: MatrixMonitorHandlerParam
             maxBytes: mediaMaxBytes,
             file: contentFile,
           });
-          debugWrite(`HANDLER: media download SUCCESS path=${media?.path ?? "none"}`);
           logVerboseMessage(`matrix: media download success path=${media?.path ?? "none"}`);
         } catch (err) {
-          debugWrite(`HANDLER: media download FAILED: ${String(err)}`);
           logVerboseMessage(`matrix: media download failed: ${String(err)}`);
         }
       } else if (mediaUrl) {
-        debugWrite(`HANDLER: skipping non-mxc url=${mediaUrl}`);
         logVerboseMessage(`matrix: skipping non-mxc media url=${mediaUrl}`);
       }
 

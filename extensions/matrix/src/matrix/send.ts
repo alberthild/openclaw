@@ -164,6 +164,7 @@ export async function sendPollMatrix(
   const { client, stopOnDone } = await resolveMatrixClient({
     client: opts.client,
     timeoutMs: opts.timeoutMs,
+    accountId: opts.accountId,
   });
 
   try {
