@@ -67,6 +67,7 @@ Docs: https://docs.openclaw.ai
 - Telegram: preserve DM topic threadId in deliveryContext. (#9039) Thanks @lailoo.
 - macOS: fix cron payload summary rendering and ISO 8601 formatter concurrency safety.
 - Security: require gateway auth for Canvas host and A2UI assets. (#9518) Thanks @coygeek.
+- Matrix: add multi-account support via `channels.matrix.accounts`; use per-account config for dm policy, allowFrom, groups, and other settings; serialize account startup to avoid race condition. (#3165, #3085) Thanks @emonty.
 
 ## 2026.2.2-3
 
