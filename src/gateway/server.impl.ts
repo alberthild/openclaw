@@ -18,6 +18,7 @@ import {
 } from "../config/config.js";
 import { applyPluginAutoEnable } from "../config/plugin-auto-enable.js";
 import { clearAgentRunContext, onAgentEvent } from "../infra/agent-events.js";
+import { initEventStore, shutdownEventStore } from "../infra/event-store.js";
 import { isDiagnosticsEnabled } from "../infra/diagnostic-events.js";
 import { logAcceptedEnvOption } from "../infra/env.js";
 import { createExecApprovalForwarder } from "../infra/exec-approval-forwarder.js";
@@ -216,6 +217,19 @@ export async function startGatewayServer(
   }
   setGatewaySigusr1RestartPolicy({ allowExternal: cfgAtStart.commands?.restart === true });
   initSubagentRegistry();
+  
+  // Initialize Event Store if configured
+  const eventStoreConfig = cfgAtStart.gateway?.eventStore;
+  if (eventStoreConfig?.enabled) {
+    await initEventStore({
+      enabled: true,
+      natsUrl: eventStoreConfig.natsUrl || "nats://localhost:4222",
+      streamName: eventStoreConfig.streamName || "openclaw-events",
+      subjectPrefix: eventStoreConfig.subjectPrefix || "openclaw.events",
+    });
+    log.info("gateway: Event Store initialized");
+  }
+  
   const defaultAgentId = resolveDefaultAgentId(cfgAtStart);
   const defaultWorkspaceDir = resolveAgentWorkspaceDir(cfgAtStart, defaultAgentId);
   const baseMethods = listGatewayMethods();
