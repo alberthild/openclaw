@@ -166,6 +166,8 @@ export function buildAgentSystemPrompt(params: {
   defaultThinkLevel?: ThinkLevel;
   reasoningLevel?: ReasoningLevel;
   extraSystemPrompt?: string;
+  /** Event-sourced context from NATS (formatted text block). */
+  eventContextHint?: string;
   ownerNumbers?: string[];
   reasoningTagHint?: boolean;
   toolNames?: string[];
@@ -549,6 +551,11 @@ export function buildAgentSystemPrompt(params: {
     for (const file of contextFiles) {
       lines.push(`## ${file.path}`, "", file.content, "");
     }
+  }
+
+  // Event-sourced context (from NATS JetStream)
+  if (params.eventContextHint) {
+    lines.push("## Event-Sourced Memory", "", params.eventContextHint, "");
   }
 
   // Skip silent replies for subagent/none modes

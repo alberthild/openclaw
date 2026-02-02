@@ -4,6 +4,12 @@ Docs: https://docs.openclaw.ai
 
 ## 2026.2.2
 
+### Features
+
+- **Event Store**: Add NATS JetStream integration for event-sourced memory. All agent events (messages, tool calls, lifecycle) are persisted and queryable. Configure via `gateway.eventStore`. (#RFC-001) Thanks @alberth, @claudia-keller.
+- **Event Context**: Automatically inject recent event history into session context on startup. Agents now remember recent conversations without manual file management.
+- **Multi-Agent Event Isolation**: Support per-agent event streams with `eventStore.agents` config. Each agent can have isolated credentials and streams.
+
 ### Changes
 
 - Docs: seed zh-CN translations. (#6619) Thanks @joshp123.
