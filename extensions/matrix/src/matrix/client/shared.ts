@@ -1,11 +1,10 @@
-import { LogService } from "@vector-im/matrix-bot-sdk";
 import type { MatrixClient } from "@vector-im/matrix-bot-sdk";
-
+import { LogService } from "@vector-im/matrix-bot-sdk";
 import type { CoreConfig } from "../types.js";
-import { createMatrixClient } from "./create-client.js";
-import { resolveMatrixAuth } from "./config.js";
-import { DEFAULT_ACCOUNT_KEY } from "./storage.js";
 import type { MatrixAuth } from "./types.js";
+import { resolveMatrixAuth } from "./config.js";
+import { createMatrixClient } from "./create-client.js";
+import { DEFAULT_ACCOUNT_KEY } from "./storage.js";
 
 type SharedMatrixClientState = {
   client: MatrixClient;
@@ -68,21 +67,21 @@ async function ensureSharedClientStarted(params: {
   encryption?: boolean;
   accountId?: string | null;
 }): Promise<void> {
-  if (params.state.started) return;
-  
+  if (params.state.started) {return;}
+
   const accountKey = getAccountKey(params.accountId);
   const existingPromise = sharedClientStartPromises.get(accountKey);
   if (existingPromise) {
     await existingPromise;
     return;
   }
-  
+
   // Legacy compatibility
   if (sharedClientStartPromise && !params.accountId) {
     await sharedClientStartPromise;
     return;
   }
-  
+
   const startPromise = (async () => {
     const client = params.state.client;
 
@@ -102,12 +101,12 @@ async function ensureSharedClientStarted(params: {
     await client.start();
     params.state.started = true;
   })();
-  
+
   sharedClientStartPromises.set(accountKey, startPromise);
   if (!params.accountId) {
     sharedClientStartPromise = startPromise;
   }
-  
+
   try {
     await startPromise;
   } finally {
@@ -128,7 +127,13 @@ export async function resolveSharedMatrixClient(
     accountId?: string | null;
   } = {},
 ): Promise<MatrixClient> {
-  const auth = params.auth ?? (await resolveMatrixAuth({ cfg: params.cfg, env: params.env, accountId: params.accountId ?? undefined }));
+  const auth =
+    params.auth ??
+    (await resolveMatrixAuth({
+      cfg: params.cfg,
+      env: params.env,
+      accountId: params.accountId ?? undefined,
+    }));
   const key = buildSharedClientKey(auth, params.accountId);
   const accountKey = getAccountKey(params.accountId);
   const shouldStart = params.startClient !== false;
@@ -213,12 +218,12 @@ export async function resolveSharedMatrixClient(
     timeoutMs: params.timeoutMs,
     accountId: params.accountId ?? undefined,
   });
-  
+
   sharedClientPromises.set(accountKey, createPromise);
   if (!params.accountId || params.accountId === DEFAULT_ACCOUNT_KEY) {
     sharedClientPromise = createPromise;
   }
-  
+
   try {
     const created = await createPromise;
     sharedClients.set(accountKey, created);

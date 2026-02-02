@@ -2,9 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-
-import { getMatrixRuntime } from "../../runtime.js";
 import type { MatrixStoragePaths } from "./types.js";
+import { getMatrixRuntime } from "../../runtime.js";
 
 export const DEFAULT_ACCOUNT_KEY = "default";
 const STORAGE_META_FILENAME = "storage-meta.json";
@@ -21,7 +20,7 @@ function sanitizePathSegment(value: string): string {
 function resolveHomeserverKey(homeserver: string): string {
   try {
     const url = new URL(homeserver);
-    if (url.host) return sanitizePathSegment(url.host);
+    if (url.host) {return sanitizePathSegment(url.host);}
   } catch {
     // fall through
   }
@@ -58,13 +57,7 @@ export function resolveMatrixStoragePaths(params: {
   const tokenHash = hashAccessToken(params.accessToken);
   // Note: rootDir does NOT include tokenHash to preserve crypto state on token rotation
   // Token rotation should not fragment storage (especially important for E2EE)
-  const rootDir = path.join(
-    stateDir,
-    "matrix",
-    "accounts",
-    accountKey,
-    `${serverKey}__${userKey}`,
-  );
+  const rootDir = path.join(stateDir, "matrix", "accounts", accountKey, `${serverKey}__${userKey}`);
   return {
     rootDir,
     storagePath: path.join(rootDir, "bot-storage.json"),
@@ -83,11 +76,10 @@ export function maybeMigrateLegacyStorage(params: {
   const hasLegacyStorage = fs.existsSync(legacy.storagePath);
   const hasLegacyCrypto = fs.existsSync(legacy.cryptoPath);
   const hasNewStorage =
-    fs.existsSync(params.storagePaths.storagePath) ||
-    fs.existsSync(params.storagePaths.cryptoPath);
+    fs.existsSync(params.storagePaths.storagePath) || fs.existsSync(params.storagePaths.cryptoPath);
 
-  if (!hasLegacyStorage && !hasLegacyCrypto) return;
-  if (hasNewStorage) return;
+  if (!hasLegacyStorage && !hasLegacyCrypto) {return;}
+  if (hasNewStorage) {return;}
 
   fs.mkdirSync(params.storagePaths.rootDir, { recursive: true });
   if (hasLegacyStorage) {
@@ -121,11 +113,7 @@ export function writeStorageMeta(params: {
       createdAt: new Date().toISOString(),
     };
     fs.mkdirSync(params.storagePaths.rootDir, { recursive: true });
-    fs.writeFileSync(
-      params.storagePaths.metaPath,
-      JSON.stringify(payload, null, 2),
-      "utf-8",
-    );
+    fs.writeFileSync(params.storagePaths.metaPath, JSON.stringify(payload, null, 2), "utf-8");
   } catch {
     // ignore meta write failures
   }
