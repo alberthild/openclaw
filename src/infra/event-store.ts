@@ -1,6 +1,6 @@
 /**
  * Event Store Integration for OpenClaw
- * 
+ *
  * Publishes all agent events to NATS JetStream for persistent storage.
  * This enables:
  * - Full audit trail of all interactions
@@ -9,7 +9,14 @@
  * - Time-travel debugging
  */
 
-import { connect, type NatsConnection, type JetStreamClient, StringCodec } from "nats";
+import {
+  connect,
+  type NatsConnection,
+  type JetStreamClient,
+  StringCodec,
+  RetentionPolicy,
+  StorageType,
+} from "nats";
 import type { AgentEventPayload } from "./agent-events.js";
 import { onAgentEvent } from "./agent-events.js";
 
@@ -37,7 +44,7 @@ export type ClawEvent = {
   };
 };
 
-export type EventType = 
+export type EventType =
   | "conversation.message.in"
   | "conversation.message.out"
   | "conversation.tool_call"
@@ -129,7 +136,7 @@ async function publishEvent(evt: AgentEventPayload): Promise<void> {
     const clawEvent = toClawEvent(evt);
     const subject = `${eventStoreConfig.subjectPrefix}.${clawEvent.agent}.${clawEvent.type.replace(/\./g, "_")}`;
     const payload = sc.encode(JSON.stringify(clawEvent));
-    
+
     await jetstream.publish(subject, payload);
   } catch (err) {
     // Log but don't throw — event store should never break core functionality
@@ -142,7 +149,7 @@ async function publishEvent(evt: AgentEventPayload): Promise<void> {
  */
 async function ensureStream(js: JetStreamClient, config: EventStoreConfig): Promise<void> {
   const jsm = await natsConnection!.jetstreamManager();
-  
+
   try {
     await jsm.streams.info(config.streamName);
   } catch {
@@ -150,11 +157,11 @@ async function ensureStream(js: JetStreamClient, config: EventStoreConfig): Prom
     await jsm.streams.add({
       name: config.streamName,
       subjects: [`${config.subjectPrefix}.>`],
-      retention: "limits" as const,
+      retention: RetentionPolicy.Limits,
       max_msgs: -1,
       max_bytes: -1,
       max_age: 0, // Never expire
-      storage: "file" as const,
+      storage: StorageType.File,
       num_replicas: 1,
       duplicate_window: 120_000_000_000, // 2 minutes in nanoseconds
     });
@@ -173,23 +180,23 @@ export async function initEventStore(config: EventStoreConfig): Promise<void> {
 
   try {
     eventStoreConfig = config;
-    
+
     // Connect to NATS
     natsConnection = await connect({ servers: config.natsUrl });
     console.log(`[event-store] Connected to NATS at ${config.natsUrl}`);
-    
+
     // Get JetStream client
     jetstream = natsConnection.jetstream();
-    
+
     // Ensure stream exists
     await ensureStream(jetstream, config);
-    
+
     // Subscribe to all agent events
     unsubscribe = onAgentEvent((evt) => {
       // Fire and forget — don't await to avoid blocking the event loop
       publishEvent(evt).catch(() => {});
     });
-    
+
     console.log("[event-store] Event listener registered");
   } catch (err) {
     console.error("[event-store] Failed to initialize:", err);
@@ -205,13 +212,13 @@ export async function shutdownEventStore(): Promise<void> {
     unsubscribe();
     unsubscribe = null;
   }
-  
+
   if (natsConnection) {
     await natsConnection.drain();
     natsConnection = null;
     jetstream = null;
   }
-  
+
   eventStoreConfig = null;
   console.log("[event-store] Shutdown complete");
 }
