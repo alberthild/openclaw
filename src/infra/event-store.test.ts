@@ -22,8 +22,9 @@ describe("Event Store", () => {
 
   describe("generateEventId", () => {
     it("should generate time-sortable IDs", async () => {
-      // Import after mocks are set up
-      const { initEventStore, shutdownEventStore } = await import("./event-store.js");
+      // Import after mocks are set up (prefixed with _ to indicate intentionally unused in this test)
+      const { initEventStore: _init, shutdownEventStore: _shutdown } =
+        await import("./event-store.js");
 
       // IDs should be string format: timestamp-random
       const id1 = Date.now().toString(36);
@@ -55,7 +56,7 @@ describe("Event Store", () => {
       const { connect } = await import("nats");
       const { initEventStore } = await import("./event-store.js");
 
-      await initEventStore({ enabled: false } as any);
+      await initEventStore({ enabled: false } as unknown);
 
       expect(connect).not.toHaveBeenCalled();
     });
@@ -77,7 +78,7 @@ describe("Event Store", () => {
       };
 
       const { connect } = await import("nats");
-      (connect as any).mockResolvedValue(mockConnection);
+      (connect as unknown).mockResolvedValue(mockConnection);
 
       const { initEventStore, shutdownEventStore } = await import("./event-store.js");
 
@@ -157,7 +158,7 @@ describe("Event Store", () => {
       };
 
       expect(config.agents).toBeDefined();
-      expect(config.agents!["agent-one"].natsUrl).toContain("agent1");
+      expect(config.agents["agent-one"].natsUrl).toContain("agent1");
     });
   });
 });

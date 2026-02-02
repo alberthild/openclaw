@@ -75,9 +75,15 @@ function generateEventId(): string {
 function mapStreamToEventType(stream: string, data: Record<string, unknown>): EventType {
   if (stream === "lifecycle") {
     const phase = data?.phase as string;
-    if (phase === "start") return "lifecycle.start";
-    if (phase === "end") return "lifecycle.end";
-    if (phase === "error") return "lifecycle.error";
+    if (phase === "start") {
+      return "lifecycle.start";
+    }
+    if (phase === "end") {
+      return "lifecycle.end";
+    }
+    if (phase === "error") {
+      return "lifecycle.error";
+    }
     return "lifecycle.start";
   }
   if (stream === "tool") {
@@ -98,8 +104,12 @@ function mapStreamToEventType(stream: string, data: Record<string, unknown>): Ev
  * Format: "main" or "agent-name:session-id"
  */
 function extractAgentFromSession(sessionKey?: string): string {
-  if (!sessionKey) return "unknown";
-  if (sessionKey === "main") return "main";
+  if (!sessionKey) {
+    return "unknown";
+  }
+  if (sessionKey === "main") {
+    return "main";
+  }
   const parts = sessionKey.split(":");
   return parts[0] || "unknown";
 }
