@@ -443,6 +443,15 @@ export const OpenClawSchema = z
           })
           .strict()
           .optional(),
+        eventStore: z
+          .object({
+            enabled: z.boolean().optional(),
+            natsUrl: z.string().optional(),
+            streamName: z.string().optional(),
+            subjectPrefix: z.string().optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict()
       .optional(),

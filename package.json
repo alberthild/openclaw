@@ -152,6 +152,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "0.13.1",
+    "nats": "^2.19.0",
     "@aws-sdk/client-bedrock": "^3.980.0",
     "@buape/carbon": "0.14.0",
     "@clack/prompts": "^1.0.0",
