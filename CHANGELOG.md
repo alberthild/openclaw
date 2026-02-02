@@ -4,6 +4,12 @@ Docs: https://docs.openclaw.ai
 
 ## 2026.2.2
 
+### Features
+
+- **Event Store**: Add NATS JetStream integration for event-sourced memory. All agent events (messages, tool calls, lifecycle) are persisted and queryable. Configure via `gateway.eventStore`. (#RFC-001) Thanks @alberth, @claudia-keller.
+- **Event Context**: Automatically inject recent event history into session context on startup. Agents now remember recent conversations without manual file management.
+- **Multi-Agent Event Isolation**: Support per-agent event streams with `eventStore.agents` config. Each agent can have isolated credentials and streams.
+
 ### Changes
 
 - Web UI: add Agents dashboard for managing agent files, tools, skills, models, channels, and cron jobs.
@@ -32,6 +38,7 @@ Docs: https://docs.openclaw.ai
 - Security: require validated shared-secret auth before skipping device identity on gateway connect.
 - Security: guard skill installer downloads with SSRF checks (block private/localhost URLs).
 - Media understanding: apply SSRF guardrails to provider fetches; allow private baseUrl overrides explicitly.
+- Tests: stub SSRF DNS pinning in web auto-reply + Gemini video coverage. (#6619) Thanks @joshp123.
 - Tests: stub SSRF DNS pinning in web auto-reply + Gemini video coverage. (#6619) Thanks @joshp123.
 
 ## 2026.2.1
