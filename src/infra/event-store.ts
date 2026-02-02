@@ -180,6 +180,28 @@ async function ensureStream(js: JetStreamClient, config: EventStoreConfig): Prom
 }
 
 /**
+ * Parse NATS URL and extract connection options
+ * Handles: nats://user:pass@host:port or just host:port
+ */
+function parseNatsUrl(natsUrl: string): { servers: string; user?: string; pass?: string } {
+  try {
+    // Handle nats:// URLs
+    if (natsUrl.startsWith("nats://")) {
+      const url = new URL(natsUrl);
+      const servers = `${url.hostname}:${url.port || 4222}`;
+      const user = url.username ? decodeURIComponent(url.username) : undefined;
+      const pass = url.password ? decodeURIComponent(url.password) : undefined;
+      return { servers, user, pass };
+    }
+    // Plain host:port format
+    return { servers: natsUrl };
+  } catch {
+    // Fallback: treat as host:port
+    return { servers: natsUrl };
+  }
+}
+
+/**
  * Initialize the event store connection
  */
 export async function initEventStore(config: EventStoreConfig): Promise<void> {
@@ -191,9 +213,12 @@ export async function initEventStore(config: EventStoreConfig): Promise<void> {
   try {
     eventStoreConfig = config;
 
+    // Parse NATS URL and extract credentials
+    const connOpts = parseNatsUrl(config.natsUrl);
+
     // Connect to NATS
-    natsConnection = await connect({ servers: config.natsUrl });
-    console.log(`[event-store] Connected to NATS at ${config.natsUrl}`);
+    natsConnection = await connect(connOpts);
+    console.log(`[event-store] Connected to NATS at ${connOpts.servers}`);
 
     // Get JetStream client
     jetstream = natsConnection.jetstream();
