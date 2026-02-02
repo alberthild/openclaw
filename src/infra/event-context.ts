@@ -7,14 +7,7 @@
  * On session start, we query recent events and build a context document.
  */
 
-import {
-  connect,
-  type NatsConnection,
-  type JetStreamClient,
-  StringCodec,
-  AckPolicy,
-  DeliverPolicy,
-} from "nats";
+import { connect, StringCodec } from "nats";
 
 const sc = StringCodec();
 
@@ -165,17 +158,21 @@ function extractConversations(events: StoredEvent[]): ConversationMessage[] {
   const seenTexts = new Set<string>();
 
   // Sort by timestamp
-  const sorted = [...events].sort((a, b) => a.timestamp - b.timestamp);
+  const sorted = [...events].toSorted((a, b) => a.timestamp - b.timestamp);
 
   for (const event of sorted) {
     // Include both incoming (user) and outgoing (assistant) messages
     const isUserMessage = event.type === "conversation.message.in";
     const isAssistantMessage = event.type === "conversation.message.out";
 
-    if (!isUserMessage && !isAssistantMessage) continue;
+    if (!isUserMessage && !isAssistantMessage) {
+      continue;
+    }
 
     const text = event.payload.data?.text as string;
-    if (!text || seenTexts.has(text)) continue;
+    if (!text || seenTexts.has(text)) {
+      continue;
+    }
 
     // For assistant messages: only keep final/complete messages (skip deltas)
     if (isAssistantMessage) {
@@ -185,7 +182,9 @@ function extractConversations(events: StoredEvent[]): ConversationMessage[] {
       );
 
       // If there are later events with same runId, this is a delta - skip
-      if (laterEvents.length > 0) continue;
+      if (laterEvents.length > 0) {
+        continue;
+      }
     }
 
     seenTexts.add(text);
@@ -221,7 +220,7 @@ function extractTopics(messages: ConversationMessage[]): string[] {
   }
 
   // Get top topics
-  const sorted = [...topicKeywords.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const sorted = [...topicKeywords.entries()].toSorted((a, b) => b[1] - a[1]).slice(0, 5);
 
   for (const [topic] of sorted) {
     topics.push(topic);
