@@ -366,7 +366,7 @@ export async function runEmbeddedAttempt(
           log.info(`[event-context] Loaded ${eventContext.eventsProcessed} events for context`);
         }
       } catch (err) {
-        log.warn(`[event-context] Failed to load: ${err}`);
+        log.warn(`[event-context] Failed to load: ${String(err)}`);
       }
     }
 
