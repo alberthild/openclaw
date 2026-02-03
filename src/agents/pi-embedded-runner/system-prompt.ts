@@ -48,10 +48,8 @@ export function buildEmbeddedSystemPrompt(params: {
   userTimeFormat?: ResolvedTimeFormat;
   contextFiles?: EmbeddedContextFile[];
   memoryCitationsMode?: MemoryCitationsMode;
-=======
   /** Event-sourced context from NATS (formatted text block). */
   eventContextHint?: string;
->>>>>>> 60f791d7f (feat(core): Auto-load Event Context on session start (Phase 3))
 }): string {
   return buildAgentSystemPrompt({
     workspaceDir: params.workspaceDir,
