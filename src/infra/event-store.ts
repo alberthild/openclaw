@@ -93,6 +93,9 @@ function mapStreamToEventType(stream: string, data: Record<string, unknown>): Ev
   if (stream === "assistant") {
     return "conversation.message.out";
   }
+  if (stream === "user") {
+    return "conversation.message.in";
+  }
   if (stream === "error") {
     return "lifecycle.error";
   }
@@ -157,8 +160,8 @@ async function publishEvent(evt: AgentEventPayload): Promise<void> {
 /**
  * Ensure the JetStream stream exists
  */
-async function ensureStream(js: JetStreamClient, config: EventStoreConfig): Promise<void> {
-  const jsm = await natsConnection!.jetstreamManager();
+async function ensureStream(nc: NatsConnection, config: EventStoreConfig): Promise<void> {
+  const jsm = await nc.jetstreamManager();
 
   try {
     await jsm.streams.info(config.streamName);
@@ -224,7 +227,7 @@ export async function initEventStore(config: EventStoreConfig): Promise<void> {
     jetstream = natsConnection.jetstream();
 
     // Ensure stream exists
-    await ensureStream(jetstream, config);
+    await ensureStream(natsConnection, config);
 
     // Subscribe to all agent events
     unsubscribe = onAgentEvent((evt) => {

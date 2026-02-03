@@ -83,7 +83,10 @@ async function queryEvents(
   config: EventContextConfig,
   options: ContextOptions,
 ): Promise<StoredEvent[]> {
-  const nc = await connect({ servers: config.natsUrl });
+  const nc = await connect({
+    servers: config.natsUrl,
+    timeout: 5000, // Don't block agent startup if NATS is slow/unreachable
+  });
 
   try {
     const jsm = await nc.jetstreamManager();

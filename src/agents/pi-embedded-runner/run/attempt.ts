@@ -355,7 +355,8 @@ export async function runEmbeddedAttempt(
             subjectPrefix: eventStoreConfig.subjectPrefix || "openclaw.events",
           },
           {
-            agent: "agent",
+            agent:
+              params.sessionKey === "main" ? "main" : params.sessionKey?.split(":")[0] || "main",
             sessionKey: params.sessionKey,
             hoursBack: 2,
             maxEvents: 100,
