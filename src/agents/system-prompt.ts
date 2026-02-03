@@ -216,8 +216,6 @@ export function buildAgentSystemPrompt(params: {
     channel: string;
   };
   memoryCitationsMode?: MemoryCitationsMode;
-  /** Event-sourced context from NATS (formatted text block). */
-  eventContextHint?: string;
 }) {
   const coreToolSummaries: Record<string, string> = {
     read: "Read file contents",
