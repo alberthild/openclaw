@@ -83,9 +83,27 @@ async function queryEvents(
   config: EventContextConfig,
   options: ContextOptions,
 ): Promise<StoredEvent[]> {
+  const QUERY_TIMEOUT_MS = 10000; // Total timeout for context building
+
+  const timeoutPromise = new Promise<StoredEvent[]>((_, reject) =>
+    setTimeout(() => reject(new Error("Event context query timeout")), QUERY_TIMEOUT_MS),
+  );
+
+  try {
+    return await Promise.race([queryEventsInternal(config, options), timeoutPromise]);
+  } catch (err) {
+    console.log(`[event-context] Query failed/timed out: ${err}, returning empty context`);
+    return [];
+  }
+}
+
+async function queryEventsInternal(
+  config: EventContextConfig,
+  options: ContextOptions,
+): Promise<StoredEvent[]> {
   const nc = await connect({
     servers: config.natsUrl,
-    timeout: 5000, // Don't block agent startup if NATS is slow/unreachable
+    timeout: 5000,
   });
 
   try {
