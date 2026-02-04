@@ -7,6 +7,7 @@ import os from "node:os";
 import type { EmbeddedRunAttemptParams, EmbeddedRunAttemptResult } from "./types.js";
 import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
+import { emitAgentEvent } from "../../../infra/agent-events.js";
 import { buildEventContext, formatContextForPrompt } from "../../../infra/event-context.js";
 import { getMachineDisplayName } from "../../../infra/machine-name.js";
 import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
@@ -828,6 +829,17 @@ export async function runEmbeddedAttempt(
               modelId: params.modelId,
             });
           }
+
+          // Emit user message to event store before sending to model
+          emitAgentEvent({
+            runId: params.runId,
+            stream: "user",
+            data: {
+              text: effectivePrompt,
+              role: "user",
+              images: imageResult.images.length > 0 ? imageResult.images.length : undefined,
+            },
+          });
 
           // Only pass images option if there are actually images to pass
           // This avoids potential issues with models that don't expect the images parameter
