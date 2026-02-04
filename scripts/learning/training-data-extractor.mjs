@@ -35,8 +35,8 @@ const sc = StringCodec();
 
 // Quality signals
 const POSITIVE_SIGNALS = [
-  /^(super|genau|perfekt|danke|gut|nice|great|thanks|exactly|perfect|prima|toll|klasse)[\s!\.]*$/i,
-  /^(ja|yes|yep|jep|jo|yup|ok|okay|alles klar|verstanden)[\s!\.]*$/i,
+  /^(super|genau|perfekt|danke|gut|nice|great|thanks|exactly|perfect|prima|toll|klasse)[\s!.]*$/i,
+  /^(ja|yes|yep|jep|jo|yup|ok|okay|alles klar|verstanden)[\s!.]*$/i,
   /das (ist|war) (gut|super|perfekt|genau|hilfreich)/i,
   /👍|👏|🙌|❤️|🔥|✅/,
   /genau (das|so)/i,
@@ -44,7 +44,7 @@ const POSITIVE_SIGNALS = [
 ];
 
 const NEGATIVE_SIGNALS = [
-  /^(nein|no|nope|ne|falsch|wrong)[\s!\.]*$/i,
+  /^(nein|no|nope|ne|falsch|wrong)[\s!.]*$/i,
   /nicht (so|das|richtig|was ich|gemeint)/i,
   /das stimmt nicht/i,
   /versteh ich nicht/i,
@@ -59,7 +59,7 @@ const SKIP_PATTERNS = [
   /exec completed/i,
   /exec failed/i,
   /^\d+$/, // Just numbers
-  /^[\s\.\,\!\?]+$/, // Just punctuation
+  /^[\s.,!?]+$/, // Just punctuation
 ];
 
 // Parse NATS URL
@@ -88,7 +88,9 @@ function matchesAny(text, patterns) {
 
 // Extract user text from event
 function extractUserText(event) {
-  if (event.type !== "conversation.message.in") return null;
+  if (event.type !== "conversation.message.in") {
+    return null;
+  }
 
   let content = event.payload?.content;
   if (!content && event.payload?.text_preview) {
@@ -101,10 +103,14 @@ function extractUserText(event) {
     content = event.payload.text;
   }
 
-  if (!content) return null;
+  if (!content) {
+    return null;
+  }
 
   // Skip system messages
-  if (matchesAny(content, SKIP_PATTERNS)) return null;
+  if (matchesAny(content, SKIP_PATTERNS)) {
+    return null;
+  }
 
   // Extract actual user message (after timestamp)
   const match = content.match(/\[.*?\d{4}\]\s*(.+)$/s);
@@ -113,20 +119,26 @@ function extractUserText(event) {
 
 // Extract assistant text from event
 function extractAssistantText(event) {
-  if (event.type !== "conversation.message.out") return null;
+  if (event.type !== "conversation.message.out") {
+    return null;
+  }
 
   // New format: payload.data.text
   let content = event.payload?.data?.text;
 
   // Fallback formats
-  if (!content) content = event.payload?.content;
+  if (!content) {
+    content = event.payload?.content;
+  }
   if (!content && event.payload?.text_preview) {
     const preview = event.payload.text_preview;
     if (Array.isArray(preview) && preview[0]?.text) {
       content = preview[0].text;
     }
   }
-  if (!content) content = event.payload?.text;
+  if (!content) {
+    content = event.payload?.text;
+  }
 
   // Don't skip short chunks here - we'll select the longest one in the pair extraction
 
@@ -140,7 +152,9 @@ function extractSessionId(event) {
     return event.payload.runId;
   }
   // message.in uses payload.sessionId
-  if (event.payload?.sessionId) return event.payload.sessionId;
+  if (event.payload?.sessionId) {
+    return event.payload.sessionId;
+  }
   // Fallback to sessionKey
   if (event.payload?.sessionKey) {
     const parts = event.payload.sessionKey.split(":");
@@ -154,24 +168,44 @@ function calculateQuality(userMsg, assistantMsg, followUp) {
   let score = 0.5; // Base score
 
   // Length factors
-  if (userMsg.length > 50) score += 0.1; // Non-trivial question
-  if (assistantMsg.length > 200) score += 0.1; // Substantive answer
-  if (assistantMsg.length > 1000) score += 0.1; // Detailed answer
+  if (userMsg.length > 50) {
+    score += 0.1; // Non-trivial question
+  }
+  if (assistantMsg.length > 200) {
+    score += 0.1; // Substantive answer
+  }
+  if (assistantMsg.length > 1000) {
+    score += 0.1; // Detailed answer
+  }
 
   // Follow-up signals
   if (followUp) {
-    if (matchesAny(followUp, POSITIVE_SIGNALS)) score += 0.3;
-    if (matchesAny(followUp, NEGATIVE_SIGNALS)) score -= 0.4;
+    if (matchesAny(followUp, POSITIVE_SIGNALS)) {
+      score += 0.3;
+    }
+    if (matchesAny(followUp, NEGATIVE_SIGNALS)) {
+      score -= 0.4;
+    }
   }
 
   // Content quality signals
-  if (assistantMsg.includes("```")) score += 0.1; // Contains code
-  if (assistantMsg.includes("|")) score += 0.05; // Contains table
-  if (/\d\.\s/.test(assistantMsg)) score += 0.05; // Numbered list
+  if (assistantMsg.includes("```")) {
+    score += 0.1; // Contains code
+  }
+  if (assistantMsg.includes("|")) {
+    score += 0.05; // Contains table
+  }
+  if (/\d\.\s/.test(assistantMsg)) {
+    score += 0.05; // Numbered list
+  }
 
   // Penalize very short exchanges
-  if (userMsg.length < 10) score -= 0.2;
-  if (assistantMsg.length < 50) score -= 0.2;
+  if (userMsg.length < 10) {
+    score -= 0.2;
+  }
+  if (assistantMsg.length < 50) {
+    score -= 0.2;
+  }
 
   // Penalize if assistant said "I don't know" or similar
   if (/kann ich nicht|weiß ich nicht|i don't know|i cannot/i.test(assistantMsg)) {
@@ -246,7 +280,7 @@ async function fetchEvents(hours) {
           `   Checked ${checked} seqs, found ${events.length} events (skipped ${skipped})...\r`,
         );
       }
-    } catch (e) {
+    } catch {
       // Skip missing sequences
       skipped++;
     }
@@ -268,7 +302,9 @@ function extractPairs(events) {
   const sessions = {};
   for (const event of events) {
     const sessionId = extractSessionId(event);
-    if (!sessions[sessionId]) sessions[sessionId] = [];
+    if (!sessions[sessionId]) {
+      sessions[sessionId] = [];
+    }
     sessions[sessionId].push(event);
   }
 
@@ -277,7 +313,7 @@ function extractPairs(events) {
   // Debug: show session sizes
   const sessionSizes = Object.entries(sessions)
     .map(([id, events]) => ({ id: id.slice(0, 20), count: events.length }))
-    .sort((a, b) => b.count - a.count)
+    .toSorted((a, b) => b.count - a.count)
     .slice(0, 5);
   console.log(`   Top sessions: ${sessionSizes.map((s) => `${s.id}...(${s.count})`).join(", ")}`);
 
@@ -308,7 +344,9 @@ function extractPairs(events) {
     for (let i = 0; i < sessionEvents.length - 1; i++) {
       const userEvent = sessionEvents[i];
       const userText = extractUserText(userEvent);
-      if (!userText) continue;
+      if (!userText) {
+        continue;
+      }
 
       // Debug first user message
       if (debugCount === 0) {
@@ -337,7 +375,9 @@ function extractPairs(events) {
         j++;
       }
 
-      if (!assistantText || assistantText.length < 50) continue; // Skip very short responses
+      if (!assistantText || assistantText.length < 50) {
+        continue; // Skip very short responses
+      }
 
       // Check for follow-up (next user message after the assistant response)
       let followUp = null;

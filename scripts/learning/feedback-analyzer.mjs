@@ -32,15 +32,15 @@ const sc = StringCodec();
 const SIGNALS = {
   // Positive feedback
   positive: [
-    /^(super|genau|perfekt|danke|gut|nice|great|thanks|exactly|perfect)[\s!\.]*$/i,
-    /^(ja|yes|yep|jep|jo|yup)[\s!\.]*$/i,
+    /^(super|genau|perfekt|danke|gut|nice|great|thanks|exactly|perfect)[\s!.]*$/i,
+    /^(ja|yes|yep|jep|jo|yup)[\s!.]*$/i,
     /das (ist|war) (gut|super|perfekt|genau)/i,
     /👍|👏|🙌|❤️|🔥|✅/,
   ],
 
   // Negative feedback
   negative: [
-    /^(nein|no|nope|ne)[\s!\.]*$/i,
+    /^(nein|no|nope|ne)[\s!.]*$/i,
     /^(falsch|wrong|incorrect)/i,
     /nicht (so|das|richtig)/i,
     /das (stimmt|ist) nicht/i,
@@ -102,8 +102,8 @@ function loadJson(path, defaultVal = {}) {
     if (existsSync(path)) {
       return JSON.parse(readFileSync(path, "utf-8"));
     }
-  } catch (e) {
-    console.error(`Error loading ${path}:`, e.message);
+  } catch (err) {
+    console.error(`Error loading ${path}:`, err.message);
   }
   return defaultVal;
 }
@@ -115,7 +115,9 @@ function matchesAny(text, patterns) {
 
 // Analyze a message for feedback signals
 function analyzeMessage(text) {
-  if (!text || text.length < 1) return null;
+  if (!text || text.length < 1) {
+    return null;
+  }
 
   // Skip system messages, heartbeats, cron notifications
   if (
@@ -165,7 +167,6 @@ function analyzeMessage(text) {
 async function fetchEvents(hours) {
   const connOpts = parseNatsUrl(NATS_URL);
   const nc = await connect(connOpts);
-  const js = nc.jetstream();
   const jsm = await nc.jetstreamManager();
 
   const info = await jsm.streams.info(STREAM);
@@ -223,7 +224,7 @@ async function fetchEvents(hours) {
             });
           }
         }
-      } catch (e) {
+      } catch {
         // Skip missing sequences
       }
     }
@@ -267,7 +268,9 @@ async function analyze() {
     agentSignals[agent].totalMessages++;
 
     const signals = analyzeMessage(event.content);
-    if (!signals) continue;
+    if (!signals) {
+      continue;
+    }
 
     if (signals.positive) {
       agentSignals[agent].positive++;

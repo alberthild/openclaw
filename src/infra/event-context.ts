@@ -92,7 +92,7 @@ async function queryEvents(
   try {
     return await Promise.race([queryEventsInternal(config, options), timeoutPromise]);
   } catch (err) {
-    console.log(`[event-context] Query failed/timed out: ${err}, returning empty context`);
+    console.log(`[event-context] Query failed/timed out: ${String(err)}, returning empty context`);
     return [];
   }
 }
