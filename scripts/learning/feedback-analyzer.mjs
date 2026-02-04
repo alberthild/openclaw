@@ -1,30 +1,30 @@
 #!/usr/bin/env node
 /**
  * Implicit Feedback Analyzer
- * 
+ *
  * Analyzes conversation events to detect implicit feedback signals:
  * - Corrections ("Nein, ich meinte X")
  * - Style requests ("Kürzer", "Auf Deutsch", "Mehr Details")
  * - Positive signals ("Super", "Genau", "Perfekt")
  * - Negative signals ("Nein", "Falsch", "Nicht so")
  * - Ignored suggestions (advice not followed)
- * 
+ *
  * Outputs behavioral adjustments to learning/{agent}/behavior.json
- * 
+ *
  * Usage: node feedback-analyzer.mjs [hours=24]
  */
 
-import { connect, StringCodec } from 'nats';
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
+import { connect, StringCodec } from "nats";
+import { homedir } from "os";
+import { join } from "path";
 
 const HOURS = parseInt(process.argv[2]) || 24;
-const NATS_URL = process.env.NATS_URL || 'nats://claudia:iGm4DKGbq63YOsbopEjzA@localhost:4222';
-const STREAM = 'openclaw-events';
+const NATS_URL = process.env.NATS_URL || "nats://claudia:iGm4DKGbq63YOsbopEjzA@localhost:4222";
+const STREAM = "openclaw-events";
 
-const CLAWD_DIR = join(homedir(), 'clawd');
-const LEARNING_DIR = join(CLAWD_DIR, 'learning');
+const CLAWD_DIR = join(homedir(), "clawd");
+const LEARNING_DIR = join(CLAWD_DIR, "learning");
 
 const sc = StringCodec();
 
@@ -37,8 +37,8 @@ const SIGNALS = {
     /das (ist|war) (gut|super|perfekt|genau)/i,
     /👍|👏|🙌|❤️|🔥|✅/,
   ],
-  
-  // Negative feedback  
+
+  // Negative feedback
   negative: [
     /^(nein|no|nope|ne)[\s!\.]*$/i,
     /^(falsch|wrong|incorrect)/i,
@@ -46,7 +46,7 @@ const SIGNALS = {
     /das (stimmt|ist) nicht/i,
     /👎|❌|😕|🙄/,
   ],
-  
+
   // Correction signals
   correction: [
     /ich mein(t?e?)/i,
@@ -54,7 +54,7 @@ const SIGNALS = {
     /korrigier|correction|richtig ist/i,
     /das war falsch/i,
   ],
-  
+
   // Style requests
   style: {
     shorter: [/kürzer|shorter|brief|kurz fassen|zu lang|too long/i],
@@ -66,7 +66,7 @@ const SIGNALS = {
     formal: [/formeller|formal|professional/i],
     casual: [/lockerer|casual|informal|entspannter/i],
   },
-  
+
   // Rephrasing requests (indicates I wasn't clear)
   rephrase: [
     /was meinst du/i,
@@ -80,15 +80,19 @@ const SIGNALS = {
 // Parse NATS URL
 function parseNatsUrl(urlString) {
   try {
-    const httpUrl = urlString.replace(/^nats:\/\//, 'http://');
+    const httpUrl = urlString.replace(/^nats:\/\//, "http://");
     const url = new URL(httpUrl);
     const servers = `${url.hostname}:${url.port || 4222}`;
     if (url.username && url.password) {
-      return { servers, user: decodeURIComponent(url.username), pass: decodeURIComponent(url.password) };
+      return {
+        servers,
+        user: decodeURIComponent(url.username),
+        pass: decodeURIComponent(url.password),
+      };
     }
     return { servers };
   } catch {
-    return { servers: urlString.replace(/^nats:\/\//, '') };
+    return { servers: urlString.replace(/^nats:\/\//, "") };
   }
 }
 
@@ -96,7 +100,7 @@ function parseNatsUrl(urlString) {
 function loadJson(path, defaultVal = {}) {
   try {
     if (existsSync(path)) {
-      return JSON.parse(readFileSync(path, 'utf-8'));
+      return JSON.parse(readFileSync(path, "utf-8"));
     }
   } catch (e) {
     console.error(`Error loading ${path}:`, e.message);
@@ -106,26 +110,28 @@ function loadJson(path, defaultVal = {}) {
 
 // Check if text matches any pattern in array
 function matchesAny(text, patterns) {
-  return patterns.some(p => p.test(text));
+  return patterns.some((p) => p.test(text));
 }
 
 // Analyze a message for feedback signals
 function analyzeMessage(text) {
   if (!text || text.length < 1) return null;
-  
+
   // Skip system messages, heartbeats, cron notifications
-  if (text.startsWith('System:') || 
-      text.includes('HEARTBEAT_OK') ||
-      text.includes('Cron:') ||
-      text.includes('Exec completed') ||
-      text.includes('Exec failed')) {
+  if (
+    text.startsWith("System:") ||
+    text.includes("HEARTBEAT_OK") ||
+    text.includes("Cron:") ||
+    text.includes("Exec completed") ||
+    text.includes("Exec failed")
+  ) {
     return null;
   }
-  
+
   // Extract just the user message part (after timestamp prefix)
   const match = text.match(/\[.*?\]\s*(.+)$/s);
   const userText = match ? match[1].trim() : text.trim();
-  
+
   const signals = {
     positive: matchesAny(userText, SIGNALS.positive),
     negative: matchesAny(userText, SIGNALS.negative),
@@ -133,20 +139,25 @@ function analyzeMessage(text) {
     rephrase: matchesAny(userText, SIGNALS.rephrase),
     styleRequests: [],
   };
-  
+
   // Check style requests
   for (const [style, patterns] of Object.entries(SIGNALS.style)) {
     if (matchesAny(userText, patterns)) {
       signals.styleRequests.push(style);
     }
   }
-  
+
   // Return null if no signals detected
-  if (!signals.positive && !signals.negative && !signals.correction && 
-      !signals.rephrase && signals.styleRequests.length === 0) {
+  if (
+    !signals.positive &&
+    !signals.negative &&
+    !signals.correction &&
+    !signals.rephrase &&
+    signals.styleRequests.length === 0
+  ) {
     return null;
   }
-  
+
   return signals;
 }
 
@@ -156,40 +167,40 @@ async function fetchEvents(hours) {
   const nc = await connect(connOpts);
   const js = nc.jetstream();
   const jsm = await nc.jetstreamManager();
-  
+
   const info = await jsm.streams.info(STREAM);
   const totalMessages = info.state.messages;
   const lastSeq = info.state.last_seq;
-  
+
   // Calculate time cutoff
   const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
-  
+
   console.log(`📊 Analyzing last ${hours}h of events`);
   console.log(`   Stream has ${totalMessages} total events`);
   console.log(`   Cutoff: ${cutoffTime.toISOString()}`);
-  
+
   const events = [];
   const batchSize = 100;
   let foundOld = false;
-  
+
   // Fetch backwards from last event
   for (let seq = lastSeq; seq >= 1 && !foundOld; seq -= batchSize) {
     const startSeq = Math.max(1, seq - batchSize + 1);
-    
+
     for (let s = seq; s >= startSeq; s--) {
       try {
         const msg = await jsm.streams.getMessage(STREAM, { seq: s });
         const event = JSON.parse(sc.decode(msg.data));
-        
+
         // Check timestamp
         const eventTime = new Date(event.timestamp || event.ts);
         if (eventTime < cutoffTime) {
           foundOld = true;
           break;
         }
-        
+
         // Only user messages
-        if (event.type === 'conversation.message.in') {
+        if (event.type === "conversation.message.in") {
           // Extract content from various formats
           let content = event.payload?.content;
           if (!content && event.payload?.text_preview) {
@@ -202,12 +213,12 @@ async function fetchEvents(hours) {
           if (!content && event.payload?.text) {
             content = event.payload.text;
           }
-          
+
           if (content) {
             events.push({
               seq: s,
               timestamp: eventTime,
-              agent: event.agent || 'main',
+              agent: event.agent || "main",
               content: content,
             });
           }
@@ -216,25 +227,25 @@ async function fetchEvents(hours) {
         // Skip missing sequences
       }
     }
-    
+
     if (events.length % 200 === 0 && events.length > 0) {
       process.stdout.write(`   Processed ${events.length} user messages...\r`);
     }
   }
-  
+
   await nc.close();
   console.log(`   Found ${events.length} user messages in time range`);
-  
+
   return events;
 }
 
 // Main analysis
 async function analyze() {
   const events = await fetchEvents(HOURS);
-  
+
   // Aggregate signals by agent
   const agentSignals = {};
-  
+
   for (const event of events) {
     const agent = event.agent;
     if (!agentSignals[agent]) {
@@ -252,86 +263,87 @@ async function analyze() {
         totalMessages: 0,
       };
     }
-    
+
     agentSignals[agent].totalMessages++;
-    
+
     const signals = analyzeMessage(event.content);
     if (!signals) continue;
-    
+
     if (signals.positive) {
       agentSignals[agent].positive++;
       if (agentSignals[agent].examples.positive.length < 5) {
         agentSignals[agent].examples.positive.push(event.content.slice(0, 100));
       }
     }
-    
+
     if (signals.negative) {
       agentSignals[agent].negative++;
       if (agentSignals[agent].examples.negative.length < 5) {
         agentSignals[agent].examples.negative.push(event.content.slice(0, 100));
       }
     }
-    
+
     if (signals.correction) {
       agentSignals[agent].corrections++;
       if (agentSignals[agent].examples.corrections.length < 5) {
         agentSignals[agent].examples.corrections.push(event.content.slice(0, 100));
       }
     }
-    
+
     if (signals.rephrase) {
       agentSignals[agent].rephraseRequests++;
     }
-    
+
     for (const style of signals.styleRequests) {
-      agentSignals[agent].styleRequests[style] = 
+      agentSignals[agent].styleRequests[style] =
         (agentSignals[agent].styleRequests[style] || 0) + 1;
     }
   }
-  
+
   // Generate behavioral adjustments
-  console.log('\n📈 Generating behavioral adjustments...\n');
-  
+  console.log("\n📈 Generating behavioral adjustments...\n");
+
   for (const [agent, signals] of Object.entries(agentSignals)) {
     const agentDir = join(LEARNING_DIR, agent);
     if (!existsSync(agentDir)) {
       mkdirSync(agentDir, { recursive: true });
     }
-    
+
     // Load existing behavior config
-    const behaviorPath = join(agentDir, 'behavior.json');
+    const behaviorPath = join(agentDir, "behavior.json");
     const behavior = loadJson(behaviorPath, {
       adjustments: {},
       history: [],
       lastUpdate: null,
     });
-    
+
     // Calculate ratios
     const total = signals.totalMessages || 1;
     const positiveRatio = signals.positive / total;
     const negativeRatio = signals.negative / total;
     const correctionRatio = signals.corrections / total;
     const rephraseRatio = signals.rephraseRequests / total;
-    
+
     // Derive adjustments
     const adjustments = {
       // Satisfaction score (positive - negative)
       satisfactionScore: Math.round((positiveRatio - negativeRatio) * 100),
-      
+
       // Clarity score (inverse of rephrase requests)
       clarityScore: Math.round((1 - rephraseRatio) * 100),
-      
+
       // Style adjustments based on explicit requests
       preferShorter: (signals.styleRequests.shorter || 0) > (signals.styleRequests.longer || 0),
-      preferTechnical: (signals.styleRequests.technical || 0) > (signals.styleRequests.simpler || 0),
+      preferTechnical:
+        (signals.styleRequests.technical || 0) > (signals.styleRequests.simpler || 0),
       preferGerman: (signals.styleRequests.german || 0) > (signals.styleRequests.english || 0),
       preferCasual: (signals.styleRequests.casual || 0) > (signals.styleRequests.formal || 0),
-      
+
       // Warnings
       highCorrectionRate: correctionRatio > 0.05,
       lowClarity: rephraseRatio > 0.1,
     };
-    
+
     // Add to history
     behavior.history.push({
       timestamp: new Date().toISOString(),
@@ -346,43 +358,45 @@ async function analyze() {
       },
       adjustments,
     });
-    
+
     // Keep last 30 entries
     if (behavior.history.length > 30) {
       behavior.history = behavior.history.slice(-30);
     }
-    
+
     // Update current adjustments
     behavior.adjustments = adjustments;
     behavior.lastUpdate = new Date().toISOString();
     behavior.examples = signals.examples;
-    
+
     // Save
     writeFileSync(behaviorPath, JSON.stringify(behavior, null, 2));
-    
+
     // Print summary
     console.log(`Agent: ${agent}`);
     console.log(`  Messages analyzed: ${signals.totalMessages}`);
     console.log(`  Positive signals: ${signals.positive} (${(positiveRatio * 100).toFixed(1)}%)`);
     console.log(`  Negative signals: ${signals.negative} (${(negativeRatio * 100).toFixed(1)}%)`);
     console.log(`  Corrections: ${signals.corrections} (${(correctionRatio * 100).toFixed(1)}%)`);
-    console.log(`  Rephrase requests: ${signals.rephraseRequests} (${(rephraseRatio * 100).toFixed(1)}%)`);
+    console.log(
+      `  Rephrase requests: ${signals.rephraseRequests} (${(rephraseRatio * 100).toFixed(1)}%)`,
+    );
     console.log(`  Satisfaction score: ${adjustments.satisfactionScore}`);
     console.log(`  Clarity score: ${adjustments.clarityScore}`);
     if (Object.keys(signals.styleRequests).length > 0) {
       console.log(`  Style preferences: ${JSON.stringify(signals.styleRequests)}`);
     }
     console.log(`  Saved to: ${behaviorPath}`);
-    console.log('');
+    console.log("");
   }
-  
+
   // Generate behavioral context for system prompt
-  console.log('📝 Generating behavioral context...\n');
-  
-  const mainBehavior = loadJson(join(LEARNING_DIR, 'main', 'behavior.json'), {});
+  console.log("📝 Generating behavioral context...\n");
+
+  const mainBehavior = loadJson(join(LEARNING_DIR, "main", "behavior.json"), {});
   if (mainBehavior.adjustments) {
     const adj = mainBehavior.adjustments;
-    
+
     let context = `## Behavioral Adjustments
 
 *Auto-generated from implicit feedback signals*
@@ -392,51 +406,64 @@ async function analyze() {
 ### Current Adjustments
 
 `;
-    
+
     if (adj.satisfactionScore !== undefined) {
-      const satisfaction = adj.satisfactionScore > 20 ? '😊 High' : 
-                          adj.satisfactionScore < -10 ? '😕 Low' : '😐 Neutral';
+      const satisfaction =
+        adj.satisfactionScore > 20
+          ? "😊 High"
+          : adj.satisfactionScore < -10
+            ? "😕 Low"
+            : "😐 Neutral";
       context += `- **Satisfaction**: ${satisfaction} (score: ${adj.satisfactionScore})\n`;
     }
-    
+
     if (adj.clarityScore !== undefined) {
-      const clarity = adj.clarityScore > 90 ? '✅ Clear' : 
-                     adj.clarityScore < 80 ? '⚠️ Needs improvement' : '👍 Good';
+      const clarity =
+        adj.clarityScore > 90
+          ? "✅ Clear"
+          : adj.clarityScore < 80
+            ? "⚠️ Needs improvement"
+            : "👍 Good";
       context += `- **Clarity**: ${clarity} (score: ${adj.clarityScore})\n`;
     }
-    
+
     if (adj.highCorrectionRate) {
       context += `- **⚠️ High correction rate** — Be more careful, verify before stating\n`;
     }
-    
+
     if (adj.lowClarity) {
       context += `- **⚠️ Low clarity** — Explain more clearly, avoid ambiguity\n`;
     }
-    
-    context += '\n### Style Preferences\n\n';
-    context += adj.preferShorter ? '- Keep responses **concise**\n' : '- Detailed responses are welcome\n';
-    context += adj.preferTechnical ? '- Use **technical depth**\n' : '- Keep it **accessible**\n';
-    context += adj.preferGerman ? '- Prefer **Deutsch**\n' : '- Language is flexible\n';
-    context += adj.preferCasual ? '- **Casual** tone preferred\n' : '- Maintain professional tone\n';
-    
+
+    context += "\n### Style Preferences\n\n";
+    context += adj.preferShorter
+      ? "- Keep responses **concise**\n"
+      : "- Detailed responses are welcome\n";
+    context += adj.preferTechnical ? "- Use **technical depth**\n" : "- Keep it **accessible**\n";
+    context += adj.preferGerman ? "- Prefer **Deutsch**\n" : "- Language is flexible\n";
+    context += adj.preferCasual
+      ? "- **Casual** tone preferred\n"
+      : "- Maintain professional tone\n";
+
     if (mainBehavior.examples?.corrections?.length > 0) {
-      context += '\n### Recent Corrections (learn from these)\n\n';
+      context += "\n### Recent Corrections (learn from these)\n\n";
       for (const ex of mainBehavior.examples.corrections.slice(0, 3)) {
         context += `- "${ex}"\n`;
       }
     }
-    
-    context += '\n---\n\n*These adjustments are derived from implicit signals. Explicit requests always override.*\n';
-    
-    const behaviorContextPath = join(LEARNING_DIR, 'main', 'behavior-context.md');
+
+    context +=
+      "\n---\n\n*These adjustments are derived from implicit signals. Explicit requests always override.*\n";
+
+    const behaviorContextPath = join(LEARNING_DIR, "main", "behavior-context.md");
     writeFileSync(behaviorContextPath, context);
     console.log(`Written to: ${behaviorContextPath}`);
   }
-  
-  console.log('\n✅ Feedback analysis complete!');
+
+  console.log("\n✅ Feedback analysis complete!");
 }
 
-analyze().catch(e => {
-  console.error('Analysis failed:', e);
+analyze().catch((e) => {
+  console.error("Analysis failed:", e);
   process.exit(1);
 });

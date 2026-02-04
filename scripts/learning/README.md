@@ -27,11 +27,13 @@ node training-data-extractor.mjs 168 --min-quality=0.5
 ```
 
 **Output:**
+
 - `openai-YYYY-MM-DD.jsonl` — OpenAI fine-tuning format
 - `alpaca-YYYY-MM-DD.json` — Alpaca format for local LoRA
 - `stats-YYYY-MM-DD.json` — Extraction statistics
 
 **Features:**
+
 - Session matching via runId↔sessionId correlation
 - Quality scoring based on response length and feedback
 - Streaming chunk aggregation (finds complete responses)
@@ -47,12 +49,14 @@ node feedback-analyzer.mjs 48
 ```
 
 **Detects:**
+
 - Positive signals (👍, "super", "danke", "genau")
 - Negative signals (👎, "nein", "falsch")
 - Correction patterns ("ich meinte...", "nicht X, sondern Y")
 - Style requests ("kürzer", "auf deutsch", "mehr details")
 
 **Output:**
+
 - `behavior.json` — Aggregated signals and adjustments
 - `behavior-context.md` — Human-readable context for system prompt
 
@@ -66,6 +70,7 @@ Validates all 5 Event Store capabilities.
 ```
 
 **Checks:**
+
 1. **Event Replay** — Can retrieve any event by sequence
 2. **Temporal Queries** — Events have timestamps, agent prefixes work
 3. **Projections** — Learning files are being updated
