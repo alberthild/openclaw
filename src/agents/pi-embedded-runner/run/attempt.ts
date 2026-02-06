@@ -7,6 +7,8 @@ import os from "node:os";
 import type { EmbeddedRunAttemptParams, EmbeddedRunAttemptResult } from "./types.js";
 import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
+import { emitAgentEvent } from "../../../infra/agent-events.js";
+import { buildEventContext, formatContextForPrompt } from "../../../infra/event-context.js";
 import { getMachineDisplayName } from "../../../infra/machine-name.js";
 import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
 import { getGlobalHookRunner } from "../../../plugins/hook-runner-global.js";
@@ -346,6 +348,34 @@ export async function runEmbeddedAttempt(
     });
     const ttsHint = params.config ? buildTtsSystemPromptHint(params.config) : undefined;
 
+    // Load event-sourced context if enabled
+    let eventContextHint: string | undefined;
+    const eventStoreConfig = params.config?.gateway?.eventStore;
+    if (eventStoreConfig?.enabled) {
+      try {
+        const eventContext = await buildEventContext(
+          {
+            natsUrl: eventStoreConfig.natsUrl || "nats://localhost:4222",
+            streamName: eventStoreConfig.streamName || "openclaw-events",
+            subjectPrefix: eventStoreConfig.subjectPrefix || "openclaw.events",
+          },
+          {
+            agent:
+              params.sessionKey === "main" ? "main" : params.sessionKey?.split(":")[0] || "main",
+            sessionKey: params.sessionKey,
+            hoursBack: 2,
+            maxEvents: 100,
+          },
+        );
+        if (eventContext.eventsProcessed > 0) {
+          eventContextHint = formatContextForPrompt(eventContext);
+          log.info(`[event-context] Loaded ${eventContext.eventsProcessed} events for context`);
+        }
+      } catch (err) {
+        log.warn(`[event-context] Failed to load: ${String(err)}`);
+      }
+    }
+
     const appendPrompt = buildEmbeddedSystemPrompt({
       workspaceDir: effectiveWorkspace,
       defaultThinkLevel: params.thinkLevel,
@@ -372,6 +402,7 @@ export async function runEmbeddedAttempt(
       userTimeFormat,
       contextFiles,
       memoryCitationsMode: params.config?.memory?.citations,
+      eventContextHint,
     });
     const systemPromptReport = buildSystemPromptReport({
       source: "run",
@@ -802,6 +833,17 @@ export async function runEmbeddedAttempt(
               modelId: params.modelId,
             });
           }
+
+          // Emit user message to event store before sending to model
+          emitAgentEvent({
+            runId: params.runId,
+            stream: "user",
+            data: {
+              text: effectivePrompt,
+              role: "user",
+              images: imageResult.images.length > 0 ? imageResult.images.length : undefined,
+            },
+          });
 
           // Only pass images option if there are actually images to pass
           // This avoids potential issues with models that don't expect the images parameter

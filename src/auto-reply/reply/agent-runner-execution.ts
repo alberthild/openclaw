@@ -93,6 +93,14 @@ export async function runAgentTurnWithFallback(params: {
       isHeartbeat: params.isHeartbeat,
     });
   }
+
+  // Emit user message event for event-sourced context
+  emitAgentEvent({
+    runId,
+    sessionKey: params.sessionKey,
+    stream: "user",
+    data: { text: params.commandBody },
+  });
   let runResult: Awaited<ReturnType<typeof runEmbeddedPiAgent>>;
   let fallbackProvider = params.followupRun.run.provider;
   let fallbackModel = params.followupRun.run.model;

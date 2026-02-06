@@ -151,12 +151,12 @@ function buildDocsSection(params: { docsPath?: string; isMinimal: boolean; readT
   return [
     "## Documentation",
     `OpenClaw docs: ${docsPath}`,
-    "Mirror: https://docs.openclaw.ai",
-    "Source: https://github.com/openclaw/openclaw",
+    "Mirror: https://docs.molt.bot",
+    "Source: https://github.com/moltbot/moltbot",
     "Community: https://discord.com/invite/clawd",
-    "Find new skills: https://clawhub.com",
+    "Find new skills: https://clawdhub.com",
     "For OpenClaw behavior, commands, config, or architecture: consult local docs first.",
-    "When diagnosing issues, run `openclaw status` yourself when possible; only ask the user if you lack access (e.g., sandboxed).",
+    "When diagnosing issues, run `moltbot status` yourself when possible; only ask the user if you lack access (e.g., sandboxed).",
     "",
   ];
 }
@@ -166,6 +166,8 @@ export function buildAgentSystemPrompt(params: {
   defaultThinkLevel?: ThinkLevel;
   reasoningLevel?: ReasoningLevel;
   extraSystemPrompt?: string;
+  /** Event-sourced context from NATS (formatted text block). */
+  eventContextHint?: string;
   ownerNumbers?: string[];
   reasoningTagHint?: boolean;
   toolNames?: string[];
@@ -565,6 +567,11 @@ export function buildAgentSystemPrompt(params: {
     for (const file of contextFiles) {
       lines.push(`## ${file.path}`, "", file.content, "");
     }
+  }
+
+  // Event-sourced context (from NATS JetStream)
+  if (params.eventContextHint) {
+    lines.push("## Event-Sourced Memory", "", params.eventContextHint, "");
   }
 
   // Skip silent replies for subagent/none modes

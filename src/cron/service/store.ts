@@ -1,11 +1,20 @@
 import fs from "node:fs";
-import type { CronJob } from "../types.js";
+import type { CronJob, CronStoreFile } from "../types.js";
 import type { CronServiceState } from "./state.js";
 import { parseAbsoluteTimeMs } from "../parse.js";
 import { migrateLegacyCronPayload } from "../payload-migration.js";
 import { loadCronStore, saveCronStore } from "../store.js";
 import { recomputeNextRuns } from "./jobs.js";
 import { inferLegacyName, normalizeOptionalText } from "./normalize.js";
+
+/**
+ * Module-level cache for store data, shared across all CronService instances
+ * in the same process.  This is critical for multi-service deduplication:
+ * when two services share the same store path, they must operate on the
+ * same in-memory object so that runningAtMs / lastRunAtMs changes are
+ * immediately visible to both.
+ */
+const storeCache = new Map<string, CronStoreFile>();
 
 function hasLegacyDeliveryHints(payload: Record<string, unknown>) {
   if (typeof payload.deliver === "boolean") {
@@ -140,8 +149,24 @@ export async function ensureLoaded(
   if (state.store && !opts?.forceReload) {
     return;
   }
-  // Force reload always re-reads the file to avoid missing cross-service
-  // edits on filesystems with coarse mtime resolution.
+
+  // Check shared cache first.  This is critical for multi-service
+  // deduplication: all CronService instances sharing the same store
+  // path must operate on the same in-memory object.
+  const cached = storeCache.get(state.deps.storePath);
+  if (cached && !state.store) {
+    // First load for this instance — use the shared cache
+    state.store = cached;
+    return;
+  }
+
+  if (opts?.forceReload && state.store) {
+    // Only pay for the stat when we're explicitly checking for external edits.
+    const mtime = await getFileMtimeMs(state.deps.storePath);
+    if (mtime !== null && state.storeFileMtimeMs !== null && mtime === state.storeFileMtimeMs) {
+      return; // File unchanged since our last load/persist.
+    }
+  }
 
   const fileMtimeMs = await getFileMtimeMs(state.deps.storePath);
   const loaded = await loadCronStore(state.deps.storePath);
@@ -260,6 +285,7 @@ export async function ensureLoaded(
     }
   }
   state.store = { version: 1, jobs: jobs as unknown as CronJob[] };
+  storeCache.set(state.deps.storePath, state.store);
   state.storeLoadedAtMs = state.deps.nowMs();
   state.storeFileMtimeMs = fileMtimeMs;
 
