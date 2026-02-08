@@ -4,6 +4,7 @@ import type { MemoryCitationsMode } from "../../config/types.memory.js";
 import type { MemorySearchResult } from "../../memory/types.js";
 import type { AnyAgentTool } from "./common.js";
 import { resolveMemoryBackendConfig } from "../../memory/backend-config.js";
+import { reRankResults } from "../../memory/composite-rerank.js";
 import { getMemorySearchManager } from "../../memory/index.js";
 import { parseAgentSessionKey } from "../../routing/session-key.js";
 import { resolveSessionAgentId } from "../agent-scope.js";
@@ -65,8 +66,9 @@ export function createMemorySearchTool(options: {
           minScore,
           sessionKey: options.agentSessionKey,
         });
+        const reRanked = reRankResults(rawResults, query);
         const status = manager.status();
-        const decorated = decorateCitations(rawResults, includeCitations);
+        const decorated = decorateCitations(reRanked, includeCitations);
         const resolved = resolveMemoryBackendConfig({ cfg, agentId });
         const results =
           status.backend === "qmd"
