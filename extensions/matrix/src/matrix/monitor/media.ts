@@ -29,11 +29,12 @@ async function fetchMatrixMediaBuffer(params: {
 
   // Use the client's download method which handles auth
   try {
-    const buffer = await params.client.downloadContent(params.mxcUrl);
+    const result = await params.client.downloadContent(params.mxcUrl);
+    const buffer = Buffer.from(result.data);
     if (buffer.byteLength > params.maxBytes) {
       throw new Error("Matrix media exceeds configured size limit");
     }
-    return { buffer: Buffer.from(buffer) };
+    return { buffer, headerType: result.contentType };
   } catch (err) {
     throw new Error(`Matrix media download failed: ${String(err)}`, { cause: err });
   }
